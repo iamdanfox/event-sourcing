@@ -1,4 +1,3 @@
-include 'eventsrc-something'
 include 'eventsrc'
 
 // Snipped from the official gradle repo: https://github.com/gradle/gradle/blob/6f31ea393eb92a278a4d7bee586437c3252e67a3/settings.gradle#L83

@@ -6,9 +6,7 @@ machine:
 
 dependencies:
   override:
-    - ./scripts/circleci/install-jdk8.sh 8u121
     - ./gradlew resolveConfigurations -is
-
 
 test:
   override:
