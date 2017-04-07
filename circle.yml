@@ -1,0 +1,15 @@
+machine:
+  environment:
+    TERM: dumb
+  java:
+    version: oraclejdk8
+
+dependencies:
+  override:
+    - ./scripts/circleci/install-jdk8.sh 8u121
+    - ./gradlew resolveConfigurations -is
+
+
+test:
+  override:
+    - ./gradlew build : { parallel: true, timeout: 300 }
