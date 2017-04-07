@@ -38,6 +38,19 @@ subprojects {
     apply plugin: 'com.palantir.baseline-idea'
     apply plugin: 'net.ltgt.errorprone'
 
+    task setupSourceDirs() {
+        doLast {
+            def packageName = rootProject.group.replace(".", "/")
+            sourceSets.forEach {sourceSet ->
+                file("src/${sourceSet.name}/java/${packageName}").mkdirs()
+                file("src/${sourceSet.name}/resources/${packageName}").mkdirs()
+            }
+        }
+    }
+
+    tasks.eclipse.dependsOn setupSourceDirs
+    tasks.idea.dependsOn setupSourceDirs
+
     sourceCompatibility = '1.8'
 
     configurations.all {
