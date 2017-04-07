@@ -14,7 +14,6 @@ plugins {
     id 'nebula.lint' version '6.8.0'
 }
 
-apply plugin: 'com.palantir.baseline-config'
 apply plugin: 'com.palantir.baseline-idea'
 
 allprojects {
@@ -22,6 +21,10 @@ allprojects {
     apply plugin: 'com.palantir.git-version'
 
     group 'io.github.iamdanfox'
+
+    repositories {
+        jcenter()
+    }
 
     version gitVersion()
 }
