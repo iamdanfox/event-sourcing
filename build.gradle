@@ -42,8 +42,8 @@ subprojects {
         doLast {
             def packageName = rootProject.group.replace(".", "/")
             sourceSets.forEach {sourceSet ->
-                file("src/${sourceSet.name}/java/${packageName}").mkdirs()
-                file("src/${sourceSet.name}/resources/${packageName}").mkdirs()
+                project.file("src/${sourceSet.name}/java/${packageName}").mkdirs()
+                project.file("src/${sourceSet.name}/resources/${packageName}").mkdirs()
             }
         }
     }
