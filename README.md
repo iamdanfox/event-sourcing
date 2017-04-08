@@ -384,5 +384,56 @@ Problem:
 - If we immediately query our local `RecipeStore` after sending the `AddTagEvent` up to Kafka, the `RecipeStore` may return an answer before consuming our new `AddTagEvent`, thereby producing an out of data Response!
 
 Clearly, we need a way to block API calls and account for Kafka's latency.
-I think Kafka's built in concept of offsets will work perfectly here: when we successfully submit an event to Kafka, we receive it's offset in return.  
-Since the RecipeStore will only ever consume events with monotonically increasing offsets, we can just block until the RecipeStore has consumed our new event.
+Kafka's offsets should help here: when we successfully submit an event to Kafka, we receive it's offset in return.  
+If we assume the RecipeStore will only ever consume events with monotonically increasing offsets, we can just block until the RecipeStore has consumed an offset at least as far as new event's offset.
+
+There is a complication however - Kafka topics can be split up into multiple partitions and ordering is only guaranteed within a partition.
+On the face of it, we could still make the RecipeStore track the highest offset processed for each partition.
+
+However, I know that Kafka allows re-partitioning of existing topics (you can increase the number).  Let's just double check that the offsets in partition 0 will not be mutated by this re-partition!
+
+To test this in docker, I produced a few messages (a,b,c,d,e,f) and then re-partitioned:
+```
+$ kafka-topics.sh --zookeeper zookeeper:2181 --describe --topic dan-is-great
+Topic:dan-is-great      PartitionCount:1        ReplicationFactor:1     Configs:
+        Topic: dan-is-great     Partition: 0    Leader: 1001    Replicas: 1001  Isr: 1001
+
+$ kafka-topics.sh --zookeeper zookeeper:2181 --alter --partitions 3 --topic dan-is-great
+WARNING: If partitions are increased for a topic that has a key, the partition logic or ordering of the messages will be affected
+Adding partitions succeeded!
+```
+
+After repartitioning, I wrote a few more strings:
+```
+$ kafka-console-producer.sh --broker-list localhost:9092 --topic dan-is-great                                                 
+alpha
+bravo
+charlie
+delta
+echo
+foxtrot
+```
+
+Clearly, the original partition 0 has not been changed, but messages are now distributed across the partitions (in a round-robin fashion).
+
+```
+$ kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic dan-is-great --from-beginning --partition 0
+a
+b
+c
+d
+e
+f
+charlie
+foxtrot
+
+$ kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic dan-is-great --from-beginning --partition 1
+bravo
+echo
+
+$ kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic dan-is-great --from-beginning --partition 2
+alpha
+delta
+```
+
+This experiment suggests that it's safe for the `RecipeStore` to track the maximum offset seen for each partition.
