@@ -63,9 +63,14 @@ Lovely. `Ctrl-C` to kill this consumer and then re-run produces exactly the same
 
 # Time for Java
 
-The whole point of this thing was to try to build a CRUD app using event sourcing.  I think I'm going to build something to store recipes.I start by defining an API project in gradle.  
+The whole point of this thing was to try to build a CRUD app using event sourcing.  I think I'm going to build something to store recipes. I start by adding an API project in my `settings.gradle`:
 
-I'll use jackson and the jax-rs annotations to define some server interfaces and value types.  `./gradlew eclipse` gets me a working project.  This server interface can be re-used to create strongly typed http clients using feign.
+```
+include 'eventsrc'
+include 'eventsrc-api'
+```
+
+I'll use jackson and the jax-rs annotations to define some server interfaces and value types.  `./gradlew eclipse` gets my IDE going.  This server interface can be re-used to create strongly typed http clients using feign.
 
 ```java
 import javax.ws.rs.GET;
@@ -86,7 +91,7 @@ public interface RecipeService {
 }
 ```
 
-The GET endpoint is pretty straightforward.  I'm just wrapping the id literal because I've got fed up of having unknown strings and longs everywhere.  It returns a full `RecipeResponse` object which includes the `RecipeId` to make things nice and restful.
+The GET endpoint is pretty straightforward.  I'm just wrapping the id literal because I've got fed up of having unknown strings and longs everywhere.  It returns a full `RecipeResponse` object which includes the `RecipeId` to make things nice and RESTful.
 
 The `createRecipe` endpoint is not idempotent - every time you call it, we'll make up an ID and store the recipe.  The body of this POST request is another `CreateRecipe` object.
 
@@ -116,5 +121,20 @@ public void round_trip_serialization() throws Exception {
     ObjectMapper mapper = new ObjectMapper();
     String string = mapper.writeValueAsString(original);
     assertThat(mapper.readValue(string, RecipeResponse.class), is(original));
+}
+```
+
+# Integration test (Docker TDD)
+
+I need to write some Java to put events into a Kafka topic using a 'Kafka producer'.
+A bit of Googling suggests that I need the [`kafka-clients` Jar](https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients).  
+I wonder what version I should pick - matching my docker image seems like a good idea.  
+Unfortunately, I'm using `latest` which isn't an immutable tag.
+I don't really understand the versioning scheme, but 0.10.1.1 seems [pretty recent](https://hub.docker.com/r/wurstmeister/kafka/tags/).
+I update the docker-compose.yml and add the jar to my `eventsrc.gradle`:
+
+```groovy
+dependencies {
+    compile 'org.apache.kafka:kafka-clients:0.10.1.1'
 }
 ```
