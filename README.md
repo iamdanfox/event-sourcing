@@ -241,3 +241,5 @@ public static final DockerComposeRule docker = DockerComposeRule.builder()
 
 This means every time we run the test, DCR will write logs to `eventsrc/build/dockerLogs/KafkaProducerIntegrationTest/{kafka,zookeeper}.log`.
 On Circle, these logs will go straight to the $CIRCLE_ARTIFACTS directory, ready for collection at the end of the run.
+
+As suspected, Circle was not actually running my integration test!  I sheepishly add `tasks.build.dependsOn integTest` to my eventsrc.gradle file and dial up logging!

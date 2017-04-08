@@ -12,4 +12,4 @@ dependencies:
 
 test:
   override:
-    - ./gradlew build : { parallel: true, timeout: 300 }
+    - ./gradlew build --info : { parallel: true, timeout: 300 }
