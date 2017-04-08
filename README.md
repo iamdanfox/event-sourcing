@@ -138,3 +138,12 @@ dependencies {
     compile 'org.apache.kafka:kafka-clients:0.10.1.1'
 }
 ```
+
+I'm going to use Palantir's [docker-compose-rule](https://github.com/palantir/docker-compose-rule) to write a JUnit integration test that proves I can write stuff to Kafka.  I'm using the gradle testsets plugin to add a `integTest` source set.  This ensures I can keep my slower integration tests separate from my fast unit tests and do the following:
+
+```groovy
+dependencies {
+    ...
+    integTestCompile 'com.palantir.docker.compose:docker-compose-rule-junit4:0.31.1'
+}
+```
