@@ -51,7 +51,7 @@ public class BlockingStoreTest {
         } catch (Exception e) {
             // expected
         }
-        assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS), greaterThan(90L));
+        assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS), greaterThan(89L));
     }
 
     @Test
