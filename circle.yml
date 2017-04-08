@@ -1,10 +1,11 @@
 machine:
-  environment: { TERM: dumb }
   services: [ docker ]
   java: { version: oraclejdk8 }
   pre:
+    - curl -sSL https://s3.amazonaws.com/circle-downloads/install-circleci-docker.sh | bash -s -- 1.10.0
     - /home/ubuntu/event-sourcing-experiment/scripts/circleci/install-docker-compose.sh
   environment:
+    TERM: dumb
     DOCKER_COMPOSE_LOCATION: /home/ubuntu/docker-compose
 
 dependencies:
