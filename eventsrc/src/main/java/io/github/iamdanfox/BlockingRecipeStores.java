@@ -11,7 +11,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 public class BlockingRecipeStores {
 
-    private static final Duration TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     private final WritableRecipeStore underlyingStore;
     private final PartitionedOffsetCompletableFutures completables;

@@ -4,6 +4,9 @@
 
 package io.github.iamdanfox;
 
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -14,9 +17,9 @@ public interface RecipeService {
 
     @GET
     @Path("recipes/:id")
-    RecipeResponse getRecipe(@PathParam("id") RecipeId id);
+    Optional<RecipeResponse> getRecipe(@PathParam("id") RecipeId id);
 
     @POST
     @Path("recipes")
-    RecipeResponse createRecipe(CreateRecipe create);
+    RecipeResponse createRecipe(CreateRecipe create) throws InterruptedException, ExecutionException, TimeoutException;
 }
