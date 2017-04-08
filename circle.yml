@@ -13,4 +13,4 @@ dependencies:
 
 test:
   override:
-    - ./gradlew test --info : { parallel: true, timeout: 300 }
+    - ./gradlew test integTest --info : { parallel: true, timeout: 300 }
