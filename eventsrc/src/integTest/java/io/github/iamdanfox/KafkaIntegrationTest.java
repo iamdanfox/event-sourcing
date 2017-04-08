@@ -6,7 +6,6 @@ package io.github.iamdanfox;
 
 import static com.palantir.docker.compose.logging.LogDirectory.circleAwareLogDirectory;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 
@@ -30,17 +29,16 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-public class KafkaProducerIntegrationTest {
+public class KafkaIntegrationTest {
 
     @ClassRule
     public static final DockerComposeRule docker = DockerComposeRule.builder()
             .file("../docker-compose.yml")
-            .saveLogsTo(circleAwareLogDirectory(KafkaProducerIntegrationTest.class))
+            .saveLogsTo(circleAwareLogDirectory(KafkaIntegrationTest.class))
             .build();
 
     @Test
@@ -89,28 +87,28 @@ public class KafkaProducerIntegrationTest {
             assertThat(metadata.serializedValueSize(), is(63));
         }
 
-        try (Consumer<byte[], String> consumer = new KafkaConsumer<>(
+        try (Consumer<byte[], Event> consumer = new KafkaConsumer<>(
                 consumerProperties(),
                 new ByteArrayDeserializer(),
-                new StringDeserializer())) {
+                new JacksonKafkaDeserializer<>(Event.class))) {
             consumer.subscribe(ImmutableList.of("consume_something"));
 
-            String value = repeatPoll(consumer, 10);
-            assertThat(value, containsString("contents"));
+            Event value = repeatPoll(consumer, 10);
+            System.out.println(event);
+            assertThat(value, is(event));
         }
-
     }
 
-    protected String repeatPoll(Consumer<byte[], String> consumer, int retries) {
-        assertThat("Poll should succeed with specified retries", retries, is(greaterThan(0)));
-        ConsumerRecords<byte[], String> poll = consumer.poll(100L);
+    private static <T> T repeatPoll(Consumer<byte[], T> consumer, int retries) {
+        assertThat("Poll should succeed within specified retries", retries, is(greaterThan(0)));
+        ConsumerRecords<byte[], T> poll = consumer.poll(100L);
 
         if (poll.count() == 0) {
             System.out.println("Polled empty records, " + (retries - 1) + " retries available...");
             return repeatPoll(consumer, retries - 1);
         }
 
-        ConsumerRecord<byte[], String> record =
+        ConsumerRecord<byte[], T> record =
                 StreamSupport.stream(poll.spliterator(), false)
                         .findFirst()
                         .get();
@@ -122,7 +120,7 @@ public class KafkaProducerIntegrationTest {
         return new KafkaProducer<>(
                 properties(),
                 new ByteArraySerializer(),
-                new KafkaJacksonSerializer<>());
+                new JacksonKafkaSerializer<>());
     }
 
     private static Properties properties() {

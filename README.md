@@ -312,3 +312,6 @@ SUCCESS! I instantly get counts spewed out to my console:
 
 Perhaps my first 100ms timeout was too slow?  I try dialing it up to 5000ms.  Yep, that's done the trick.  
 Message received first time.  Perhaps zookeeper on my little docker containers is just slow setting up consumers.
+
+Time to find a Jackson implementation of Kafka's `Deserializer<T>`. Strange that there doesn't seem to be a maven artifact
+I can just depend on here.  Nevermind, it's only 40 lines of code.
