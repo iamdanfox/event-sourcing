@@ -10,6 +10,4 @@ public interface RecipeStore {
 
     Optional<RecipeResponse> getRecipeById(RecipeId id);
 
-    void consume(Event event);
-
 }

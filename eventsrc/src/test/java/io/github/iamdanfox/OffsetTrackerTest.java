@@ -4,22 +4,53 @@
 
 package io.github.iamdanfox;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class OffsetTrackerTest {
+
     Event event = mock(Event.class);
+    WritableRecipeStore underlyingStore = mock(WritableRecipeStore.class);
+    OffsetTracker tracker = new OffsetTracker(underlyingStore);
+    ExecutorService testExecutor = Executors.newSingleThreadExecutor();
 
     @Test
     public void consuming_an_event_should_delegate_to_real_store() {
-        RecipeStore underlyingStore = mock(RecipeStore.class);
-        OffsetTracker tracker = new OffsetTracker(underlyingStore);
-
         tracker.consume(consumerRecord());
         verify(underlyingStore).consume(event);
+    }
+
+    @Test
+    public void after_consuming_123_query_for_100_returns_immediately() {
+        tracker.consume(consumerRecord());
+        RecipeStore blockingStore = tracker.blockingStore(0, 100L);
+
+        blockingStore.getRecipeById(Literals.ID);
+        verify(underlyingStore).getRecipeById(Literals.ID);
+    }
+
+    @Ignore
+    @Test
+    public void after_consuming_123_query_for_124_blocks() throws Exception {
+        tracker.consume(consumerRecord());
+        RecipeStore blockingStore = tracker.blockingStore(0, 124L);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        testExecutor.submit(() -> {
+            blockingStore.getRecipeById(Literals.ID);
+            latch.countDown();
+        });
+        assertThat("latch should never be released", latch.await(100, TimeUnit.MILLISECONDS), is(false));
     }
 
     private ConsumerRecord<?, Event> consumerRecord() {

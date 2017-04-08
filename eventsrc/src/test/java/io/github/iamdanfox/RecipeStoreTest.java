@@ -42,7 +42,7 @@ public class RecipeStoreTest {
 
     @Test
     public void remove_tag_event_means_response_contains_that_tag() {
-        RecipeStore store = prefilled1();
+        WritableRecipeStore store = prefilled1();
 
         Stream.of(Literals.ADD_TAG, Literals.ADD_TAG, Literals.REMOVE_TAG, Literals.REMOVE_TAG)
                 .forEach(store::consume);

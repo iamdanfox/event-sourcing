@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-public class InMemoryRecipeStore implements Matcher, RecipeStore {
+public class InMemoryRecipeStore implements Matcher, WritableRecipeStore {
 
     private final Map<RecipeId, String> contentsById = new HashMap<>();
     private final Multimap<RecipeId, RecipeTag> tagsById = HashMultimap.create();
