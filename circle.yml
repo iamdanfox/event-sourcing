@@ -4,6 +4,7 @@ machine:
   pre:
     - curl -sSL https://s3.amazonaws.com/circle-downloads/install-circleci-docker.sh | bash -s -- 1.10.0
     - /home/ubuntu/event-sourcing-experiment/scripts/circleci/install-docker-compose.sh
+    - /home/ubuntu/event-sourcing-experiment/scripts/circleci/pull-all-images.sh : { background: true }
   environment:
     TERM: dumb
     DOCKER_COMPOSE_LOCATION: /home/ubuntu/docker-compose
