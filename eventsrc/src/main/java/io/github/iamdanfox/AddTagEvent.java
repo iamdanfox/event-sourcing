@@ -9,15 +9,11 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.immutables.value.Value;
 
-@JsonTypeName("created.1")
+@JsonTypeName("add-tag.1")
 @Value.Immutable
 @JsonSerialize
-@JsonDeserialize(as = ImmutableRecipeCreatedEvent.class)
-public interface RecipeCreatedEvent extends Event {
+@JsonDeserialize(as = ImmutableAddTagEvent.class)
+public interface AddTagEvent extends Event {
 
-    CreateRecipe create();
-
-    static ImmutableRecipeCreatedEvent.Builder builder() {
-        return ImmutableRecipeCreatedEvent.builder();
-    }
+    RecipeTag addTag();
 }

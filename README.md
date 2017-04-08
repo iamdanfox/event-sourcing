@@ -361,3 +361,6 @@ public class RecipeStore {
     }
 }
 ```
+
+Time to add more events!  Let's do tags first.  We'll have `AddTagEvent` and `RemoveTagEvent` objects.  
+This is where I wish Java had Algebraic Data Types (aka sum types).

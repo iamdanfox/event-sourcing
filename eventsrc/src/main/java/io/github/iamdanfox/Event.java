@@ -10,8 +10,11 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
-        @JsonSubTypes.Type(RecipeCreatedEvent.class)
+        @JsonSubTypes.Type(RecipeCreatedEvent.class),
+        @JsonSubTypes.Type(AddTagEvent.class),
+        @JsonSubTypes.Type(RemoveTagEvent.class)
         })
 public interface Event {
 
+    RecipeId id();
 }
