@@ -1,4 +1,6 @@
 machine:
+  services:
+    - docker
   environment:
     TERM: dumb
   java:

@@ -12,4 +12,5 @@ dependencies {
     compile 'org.apache.kafka:kafka-clients:0.10.1.1'
 
     integTestCompile 'com.palantir.docker.compose:docker-compose-rule-junit4:0.31.1'
+    integTestRuntime 'ch.qos.logback:logback-classic:1.2.1'
 }

@@ -147,3 +147,37 @@ dependencies {
     integTestCompile 'com.palantir.docker.compose:docker-compose-rule-junit4:0.31.1'
 }
 ```
+
+I try to run my first integration test but immediately find that logging isn't set up:
+
+```java
+public class KafkaProducerIntegrationTest {
+    @ClassRule
+    public static final DockerComposeRule docker = DockerComposeRule.builder()
+            .file("../docker-compose.yml")
+            .build();
+    @Test
+    public void smoke_test() {}
+}
+```
+
+```
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+```
+
+Clearly, I need an slf4j implementation.  I add a `logback-test.xml` file and take a runtime dependency on logback.  Loglines coming through loud and clear.  New error: "Couldn't connect to Docker daemon".  
+This happens because JUnit doesn't know how to connect to my docker-machine.
+I can add some environment variables from the `docker-machine env` command to my Eclipse run configuration to fix this:
+```
+export DOCKER_TLS_VERIFY="1"
+export DOCKER_HOST="tcp://192.168.99.100:2376"
+export DOCKER_CERT_PATH="/Users/dfox/.docker/machine/machines/big"
+```
+My empty JUnit test method is passing locally now.  I wonder if it'll work on CI.  I add the following to my circle.yml and cross my fingers.
+```
+machine:
+  services:
+    - docker
+```
