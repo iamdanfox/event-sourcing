@@ -315,3 +315,24 @@ Message received first time.  Perhaps zookeeper on my little docker containers i
 
 Time to find a Jackson implementation of Kafka's `Deserializer<T>`. Strange that there doesn't seem to be a maven artifact
 I can just depend on here.  Nevermind, it's only 40 lines of code.
+
+# Event reducer (aggregator)
+
+The core of the Event Sourcing pattern is that you store an immutable history of 'events' which are changes to your domain concepts.  Services consume all these events to build up their view of the world.
+
+I'd like to optimise for at-least once delivery, so the API will need to be as idempotent as possible.
+Specifically, if one message is delivered multiple times to a consumer, nothing bad should happen.
+For example, SQL's `INSERT` commands are not idempotent (because a second invocation will fail) whereas
+`UPSERT` commands are idempotent.  From an eventing perspective, events like `increment` won't work,
+whereas `set-field-to-x` events would be idempotent.
+
+To exercise this system a bit more, I need to flesh out my domain a bit more.  Let's expand the concept of a `Recipe` to include:
+
+- the notion of 'contents' (string)
+- an author
+- a created time
+- last modified
+- contributors
+- tags
+
+This should make things more interesting!
