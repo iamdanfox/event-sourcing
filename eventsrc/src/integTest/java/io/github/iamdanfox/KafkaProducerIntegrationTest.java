@@ -90,8 +90,13 @@ public class KafkaProducerIntegrationTest {
                 new ByteArrayDeserializer(),
                 new StringDeserializer())) {
             consumer.subscribe(ImmutableList.of("consume_something"));
-            ConsumerRecords<byte[], String> poll = consumer.poll(100L);
-            System.out.println(poll);
+
+            for (int i = 0; i < 10; i++) {
+                ConsumerRecords<byte[], String> poll = consumer.poll(100L);
+
+                System.out.println(poll.count());
+            }
+
         }
 
     }
@@ -112,8 +117,9 @@ public class KafkaProducerIntegrationTest {
     private static Properties consumerProperties() {
         Properties props = new Properties();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "group-id-test-consumer");
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "randomId"); //UUID.randomUUID().toString());
         props.put(ConsumerConfig.CLIENT_ID_CONFIG, "client-id-test-consumer");
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         return props;
     }
 

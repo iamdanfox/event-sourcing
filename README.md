@@ -274,3 +274,41 @@ try (Consumer<byte[], String> consumer = new KafkaConsumer<>(
 
 It looks like this guy needs some different properties though.  The `CLIENT_ID_CONFIG` makes sense to me, but the `GROUP_ID_CONFIG` isn't super clear.  Luckily the [Kafka docs](https://kafka.apache.org/documentation/#intro_consumers) help.
 It seems like in my case, I would just have one consumergroup per instance of my microservice (because I want all instances to receive all messages).
+
+Test is passing, but frustratingly, the `ConsumerRecords` is empty.  Perhaps the producer doesn't read from the beginning of history by default?  I add an extra println which attests that the consumer is definitely starting from `{consume_something-0=0}`.
+
+```java
+System.out.println(consumer.beginningOffsets(
+        ImmutableList.of(new TopicPartition("consume_something", 0))));
+```
+
+For my own sanity, I want to verify the record really got written. I add `.skipShutdown(true)` to DockerComposeRule
+and after the next run terminates, exec into the container and run:
+
+```
+$ kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic consume_something --from-beginning
+{"type":"created.1","id":"id","create":{"contents":"contents"}}
+^CProcessed a total of 1 messages
+```
+
+Well, my JSON message is definitely there.  Interestingly, if I leave off --from-beginning, I get zero messages.
+Some Googling suggests I need to set the equivalent of this flag for my Java consumer.  I add the following property:
+
+```java
+props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+```
+
+As a stab in the dark, I try wrapping my poll invocation in a for loop and ask it to poll 100 times.  
+SUCCESS! I instantly get counts spewed out to my console:
+
+```
+0
+1
+0
+0
+0
+...
+```
+
+Perhaps my first 100ms timeout was too slow?  I try dialing it up to 5000ms.  Yep, that's done the trick.  
+Message received first time.  Perhaps zookeeper on my little docker containers is just slow setting up consumers.
