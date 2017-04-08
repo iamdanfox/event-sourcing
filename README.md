@@ -256,3 +256,21 @@ A new `RecipeCreatedEvent` then goes onto the topic nicely.  Not sure what I sho
 I know Kafka has a `Key` field, but I think this is more for fine-grained partition control... I'm going to leave that null.
 
 Frustratingly, my test currently doesn't actually validate that sensible bytes end up in Kafka (I've only implemented the write path, not the read one).
+
+# Consume events
+
+If my microservice is going to expose nice CRUD endpoints, it needs to consume events from Kafka and answer questions about the current state of the world.  I'll add an extra test method to check I can consume simple json objects.
+
+```java
+try (Consumer<byte[], String> consumer = new KafkaConsumer<>(
+        consumerProperties(),
+        new ByteArrayDeserializer(),
+        new StringDeserializer())) {
+    consumer.subscribe(ImmutableList.of("consume_something"));
+    ConsumerRecords<byte[], String> poll = consumer.poll(100L);
+    System.out.println(poll);
+}
+```
+
+It looks like this guy needs some different properties though.  The `CLIENT_ID_CONFIG` makes sense to me, but the `GROUP_ID_CONFIG` isn't super clear.  Luckily the [Kafka docs](https://kafka.apache.org/documentation/#intro_consumers) help.
+It seems like in my case, I would just have one consumergroup per instance of my microservice (because I want all instances to receive all messages).
