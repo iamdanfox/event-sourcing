@@ -30,7 +30,7 @@ public class KafkaProducerIntegrationTest {
 
     @ClassRule
     public static final DockerComposeRule docker = DockerComposeRule.builder()
-            .file(file())
+            .file("../docker-compose.yml")
             .saveLogsTo(circleAwareLogDirectory(KafkaProducerIntegrationTest.class))
             .build();
 
@@ -48,18 +48,10 @@ public class KafkaProducerIntegrationTest {
 
     private static Properties properties() {
         Properties props = new Properties();
-        // local docker-machine requires IP address, unix server on CI
-        String host = System.getenv("CI") != null ? "localhost" : "192.168.99.100";
-        props.put(BOOTSTRAP_SERVERS_CONFIG, host + ":9092");
+        props.put(BOOTSTRAP_SERVERS_CONFIG, "kafka-etc-hosts-alias:9092");
         props.put(KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
         props.put(VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         return props;
     }
 
-    private static String file() {
-        if (System.getenv("CI") != null) {
-            return "./src/integTest/resources/io/github/iamdanfox/docker-compose.yml";
-        }
-        return "../docker-compose.yml";
-    }
 }
