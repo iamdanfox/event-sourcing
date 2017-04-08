@@ -14,14 +14,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.junit.Ignore;
 import org.junit.Test;
 
-public class OffsetTrackerTest {
+public class BlockingStoresTest {
 
     Event event = mock(Event.class);
     WritableRecipeStore underlyingStore = mock(WritableRecipeStore.class);
-    OffsetTracker tracker = new OffsetTracker(underlyingStore);
+    BlockingStores tracker = new BlockingStores(underlyingStore);
     ExecutorService testExecutor = Executors.newSingleThreadExecutor();
 
     @Test
@@ -39,7 +38,6 @@ public class OffsetTrackerTest {
         verify(underlyingStore).getRecipeById(Literals.ID);
     }
 
-    @Ignore
     @Test
     public void after_consuming_123_query_for_124_blocks() throws Exception {
         tracker.consume(consumerRecord());

@@ -13,24 +13,27 @@ import java.util.concurrent.TimeoutException;
 
 public class BlockingStore implements RecipeStore {
 
+    private final Duration timeout;
     private final RecipeStore underlyingStore;
     private final Future<?> offsetReachedFuture;
-    private final Duration timeout;
 
-    public BlockingStore(RecipeStore underlyingStore, Future<?> offsetReachedFuture, Duration timeout) {
+    public BlockingStore(Duration timeout, RecipeStore underlyingStore, Future<?> offsetReachedFuture) {
+        this.timeout = timeout;
         this.underlyingStore = underlyingStore;
         this.offsetReachedFuture = offsetReachedFuture;
-        this.timeout = timeout;
     }
 
     @Override
     public Optional<RecipeResponse> getRecipeById(RecipeId id) {
+        return waitForOffset().getRecipeById(id);
+    }
+
+    private RecipeStore waitForOffset() {
         try {
             offsetReachedFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
-        return underlyingStore.getRecipeById(id);
+        return underlyingStore;
     }
-
 }

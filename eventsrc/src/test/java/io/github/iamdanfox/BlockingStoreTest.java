@@ -29,7 +29,7 @@ public class BlockingStoreTest {
     public void if_future_is_done_should_delegate_call() throws InterruptedException {
         CompletableFuture<?> offsetReachedFuture = new CompletableFuture<>();
         offsetReachedFuture.complete(null);
-        BlockingStore store = new BlockingStore(underlyingStore, offsetReachedFuture, Duration.ofHours(1));
+        BlockingStore store = new BlockingStore(Duration.ofHours(1), underlyingStore, offsetReachedFuture);
 
         Optional<RecipeResponse> expected = Optional.of(Literals.RECIPE_RESPONSE);
         when(underlyingStore.getRecipeById(Literals.ID)).thenReturn(expected);
@@ -41,9 +41,9 @@ public class BlockingStoreTest {
     public void call_should_block_for_timeout() throws InterruptedException {
         CompletableFuture<?> offsetReachedFuture = new CompletableFuture<>();
         BlockingStore store = new BlockingStore(
+                Duration.ofMillis(90),
                 underlyingStore,
-                offsetReachedFuture,
-                Duration.ofMillis(90));
+                offsetReachedFuture);
 
         Stopwatch stopwatch = Stopwatch.createStarted();
         try {
@@ -57,7 +57,7 @@ public class BlockingStoreTest {
     @Test
     public void call_should_block_until_future_is_done() throws InterruptedException {
         CompletableFuture<?> offsetReachedFuture = new CompletableFuture<>();
-        BlockingStore store = new BlockingStore(underlyingStore, offsetReachedFuture, Duration.ofHours(1));
+        BlockingStore store = new BlockingStore(Duration.ofHours(1), underlyingStore, offsetReachedFuture);
 
         CountDownLatch asyncGuarantee = new CountDownLatch(1);
         CountDownLatch completed = new CountDownLatch(1);
