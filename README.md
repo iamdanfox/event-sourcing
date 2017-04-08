@@ -60,3 +60,61 @@ world
 ```
 
 Lovely. `Ctrl-C` to kill this consumer and then re-run produces exactly the same values.  I mash a few keys into the producer and watch them appear on the consumer CLI.  Slightly surprised at the latency... this doesn't seem to be blazing on my docker containers.
+
+# Time for Java
+
+The whole point of this thing was to try to build a CRUD app using event sourcing.  I think I'm going to build something to store recipes.I start by defining an API project in gradle.  
+
+I'll use jackson and the jax-rs annotations to define some server interfaces and value types.  `./gradlew eclipse` gets me a working project.  This server interface can be re-used to create strongly typed http clients using feign.
+
+```java
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+
+@Path("/")
+public interface RecipeService {
+
+    @GET
+    @Path("recipes/:id")
+    RecipeResponse getRecipe(@PathParam("id") RecipeId id);
+
+    @POST
+    @Path("recipes")
+    RecipeResponse createRecipe(CreateRecipe create);
+}
+```
+
+The GET endpoint is pretty straightforward.  I'm just wrapping the id literal because I've got fed up of having unknown strings and longs everywhere.  It returns a full `RecipeResponse` object which includes the `RecipeId` to make things nice and restful.
+
+The `createRecipe` endpoint is not idempotent - every time you call it, we'll make up an ID and store the recipe.  The body of this POST request is another `CreateRecipe` object.
+
+I'm using Google's immutables annotation processor to make these value classes to avoid a bit of boilerplate:
+
+```java
+@Value.Immutable
+@JsonSerialize
+@JsonDeserialize(as = ImmutableRecipe.class)
+public interface RecipeResponse {
+
+    RecipeId id();
+
+    String contents();
+}
+```
+
+A quick serialization test ensures that my Jackson annotations work and Immutables is still generating sensible code!
+
+```java
+@Test
+public void round_trip_serialization() throws Exception {
+    RecipeResponse original = ImmutableRecipeResponse.builder()
+            .id(RecipeId.fromString("some-id"))
+            .contents("my recipe")
+            .build();
+    ObjectMapper mapper = new ObjectMapper();
+    String string = mapper.writeValueAsString(original);
+    assertThat(mapper.readValue(string, RecipeResponse.class), is(original));
+}
+```
