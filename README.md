@@ -226,4 +226,18 @@ System.out.println(metadata.offset());
 
 Success! Returning a nice round `0`.  I wrap the whole thing in a loop and run it a few times.  It takes 2.7 seconds to commit 1000 messages.  Happy days!
 
-As a stab in the dark to make this pass on CI, I switch out my docker-machine IP address for `localhost` if the `CI` environment variable is detected.
+As a stab in the dark to make this pass on CI, I switch out my docker-machine IP address for `localhost` if the `CI` environment variable is detected.  Green light on CI.
+
+Honestly, I'm a bit suspicious at this point. Seems too easy.  I'd like to see that my test is actually working properly on CI.
+I switch on DockerComposeRule's built in log collection:
+
+```java
+@ClassRule
+public static final DockerComposeRule docker = DockerComposeRule.builder()
+        .file("../docker-compose.yml")
+        .saveLogsTo(circleAwareLogDirectory(KafkaProducerIntegrationTest.class))
+        .build();
+```
+
+This means every time we run the test, DCR will write logs to `eventsrc/build/dockerLogs/KafkaProducerIntegrationTest/{kafka,zookeeper}.log`.
+On Circle, these logs will go straight to the $CIRCLE_ARTIFACTS directory, ready for collection at the end of the run.

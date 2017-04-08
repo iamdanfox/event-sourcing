@@ -4,6 +4,7 @@
 
 package io.github.iamdanfox;
 
+import static com.palantir.docker.compose.logging.LogDirectory.circleAwareLogDirectory;
 import static org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG;
@@ -30,6 +31,7 @@ public class KafkaProducerIntegrationTest {
     @ClassRule
     public static final DockerComposeRule docker = DockerComposeRule.builder()
             .file("../docker-compose.yml")
+            .saveLogsTo(circleAwareLogDirectory(KafkaProducerIntegrationTest.class))
             .build();
 
     private static final Properties properties = properties();
