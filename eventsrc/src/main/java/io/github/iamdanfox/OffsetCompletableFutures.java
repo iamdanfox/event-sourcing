@@ -6,19 +6,20 @@ package io.github.iamdanfox;
 
 import static java.util.stream.Collectors.toList;
 
-import java.util.HashSet;
+import com.google.common.collect.Sets;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class OffsetCompletableFutures {
 
-    private long maxOffsetSeenAlready = 0;
-    private final Set<BlockingCondition> listeners = new HashSet<>();
+    private AtomicLong maxOffsetSeenAlready = new AtomicLong(-1);
+    private final Set<BlockingCondition> listeners = Sets.newConcurrentHashSet();
 
     public Future<?> forOffset(long waitForOffset) {
-        if (maxOffsetSeenAlready >= waitForOffset) {
+        if (maxOffsetSeenAlready.get() >= waitForOffset) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -40,7 +41,7 @@ public class OffsetCompletableFutures {
     }
 
     public void updateMaxOffset(long offset) {
-        maxOffsetSeenAlready = Math.max(offset, maxOffsetSeenAlready);
+        maxOffsetSeenAlready.accumulateAndGet(offset, Math::max);
         List<BlockingCondition> forRemoval = listeners.stream()
                 .filter(blockingCondition -> blockingCondition.satisfiedByOffset(offset))
                 .collect(toList());

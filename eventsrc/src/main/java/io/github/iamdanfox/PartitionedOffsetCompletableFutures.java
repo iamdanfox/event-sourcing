@@ -4,13 +4,13 @@
 
 package io.github.iamdanfox;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 public class PartitionedOffsetCompletableFutures {
 
-    private final Map<Integer, OffsetCompletableFutures> cache = new HashMap<>();
+    private final Map<Integer, OffsetCompletableFutures> cache = new ConcurrentHashMap<>();
     private static final Function<Integer, OffsetCompletableFutures> FACTORY =
             partitionId -> new OffsetCompletableFutures();
 
