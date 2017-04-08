@@ -336,3 +336,13 @@ To exercise this system a bit more, I need to flesh out my domain a bit more.  L
 - tags
 
 This should make things more interesting!
+
+Let's start with a simple implementation that assumes exactly once delivery for simplicity!  Since this can be a completely self-contained class, I'm going to TDD it.  I create the `RecipeStoreTest` class and write my first method.  I can now use IDE prompts to fill in the implementation of the `RecipeStore`.
+
+```java
+@Test
+public void returns_empty_for_lookup_by_id_initially() {
+    RecipeStore store = new RecipeStore();
+    assertThat(store.getRecipeById(RecipeId.fromString("id")), is(Optional.empty()));
+}
+```

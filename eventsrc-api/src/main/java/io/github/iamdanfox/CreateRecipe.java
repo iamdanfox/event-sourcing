@@ -14,4 +14,8 @@ import org.immutables.value.Value;
 public interface CreateRecipe {
 
     String contents();
+
+    static ImmutableCreateRecipe.Builder builder() {
+        return ImmutableCreateRecipe.builder();
+    }
 }

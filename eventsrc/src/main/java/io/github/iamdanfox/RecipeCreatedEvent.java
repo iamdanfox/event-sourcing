@@ -18,4 +18,8 @@ public interface RecipeCreatedEvent extends Event {
     RecipeId id();
 
     CreateRecipe create();
+
+    static ImmutableRecipeCreatedEvent.Builder builder() {
+        return ImmutableRecipeCreatedEvent.builder();
+    }
 }
