@@ -17,7 +17,7 @@ public class RecipeStoreTest {
 
     @Test
     public void returns_empty_for_lookup_by_id_initially() {
-        RecipeStore store = new RecipeStore();
+        RecipeStore store = new InMemoryRecipeStore();
         assertThat(store.getRecipeById(Literals.ID), is(Optional.empty()));
     }
 
@@ -32,7 +32,7 @@ public class RecipeStoreTest {
 
     @Test
     public void add_tag_event_means_response_contains_that_tag() {
-        RecipeStore store = prefilled1();
+        InMemoryRecipeStore store = prefilled1();
 
         store.match(Literals.ADD_TAG);
 
@@ -51,8 +51,8 @@ public class RecipeStoreTest {
         assertThat(response.tags(), is(empty()));
     }
 
-    private static RecipeStore prefilled1() {
-        RecipeStore store = new RecipeStore();
+    private static InMemoryRecipeStore prefilled1() {
+        InMemoryRecipeStore store = new InMemoryRecipeStore();
         store.match(RecipeCreatedEvent.builder()
                 .id(Literals.ID)
                 .create(CreateRecipe.builder()
