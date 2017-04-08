@@ -6,8 +6,6 @@ package io.github.iamdanfox;
 
 import static com.palantir.docker.compose.logging.LogDirectory.circleAwareLogDirectory;
 import static org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS_CONFIG;
-import static org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG;
-import static org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
@@ -38,8 +36,11 @@ public class KafkaProducerIntegrationTest {
 
     @Test
     public void smoke_test() throws InterruptedException, ExecutionException, TimeoutException {
-        try (Producer<String, String> producer = new KafkaProducer<>(properties)) {
-            ProducerRecord<String, String> record = new ProducerRecord<>("topic-name", "value");
+        try (Producer<byte[], String> producer = new KafkaProducer<>(
+                properties,
+                new ByteArraySerializer(),
+                new StringSerializer())) {
+            ProducerRecord<byte[], String> record = new ProducerRecord<>("topic-name", "value");
             Future<RecordMetadata> send = producer.send(record);
             RecordMetadata metadata = send.get(10, TimeUnit.SECONDS);
             assertThat(metadata.offset(), is(0L));
@@ -49,8 +50,6 @@ public class KafkaProducerIntegrationTest {
     private static Properties properties() {
         Properties props = new Properties();
         props.put(BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
-        props.put(KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
-        props.put(VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         return props;
     }
 
