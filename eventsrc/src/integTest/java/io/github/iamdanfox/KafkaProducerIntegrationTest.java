@@ -30,7 +30,7 @@ public class KafkaProducerIntegrationTest {
 
     @ClassRule
     public static final DockerComposeRule docker = DockerComposeRule.builder()
-            .file("../docker-compose.yml")
+            .file(file())
             .saveLogsTo(circleAwareLogDirectory(KafkaProducerIntegrationTest.class))
             .build();
 
@@ -54,5 +54,12 @@ public class KafkaProducerIntegrationTest {
         props.put(KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
         props.put(VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         return props;
+    }
+
+    private static String file() {
+        if (System.getenv("CI") != null) {
+            return "./src/integTest/resources/io/github/iamdanfox/docker-compose.yml";
+        }
+        return "../docker-compose.yml";
     }
 }
