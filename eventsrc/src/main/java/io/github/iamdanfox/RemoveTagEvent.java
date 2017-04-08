@@ -7,6 +7,7 @@ package io.github.iamdanfox;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.github.iamdanfox.ImmutableRemoveTagEvent.Builder;
 import org.immutables.value.Value;
 
 @JsonTypeName("remove-tag.1")
@@ -16,5 +17,9 @@ import org.immutables.value.Value;
 public interface RemoveTagEvent extends Event {
 
     RecipeTag tag();
+
+    static Builder builder() {
+        return ImmutableRemoveTagEvent.builder();
+    }
 }
 

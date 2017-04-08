@@ -4,11 +4,20 @@
 
 package io.github.iamdanfox;
 
-public class Literals {
+public interface Literals {
 
-    public static final RecipeId ID = RecipeId.fromString("id");
-    public static final RecipeTag TAG = RecipeTag.fromString("my-tag");
+    RecipeId ID = RecipeId.fromString("id");
 
-    private Literals() {}
+    RecipeTag TAG = RecipeTag.fromString("my-tag");
+
+    AddTagEvent ADD_TAG = AddTagEvent.builder()
+            .id(ID)
+            .tag(TAG)
+            .build();
+
+    RemoveTagEvent REMOVE_TAG = RemoveTagEvent.builder()
+            .id(ID)
+            .tag(TAG)
+            .build();
 
 }

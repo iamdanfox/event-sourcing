@@ -41,4 +41,8 @@ public class RecipeStore {
     public void consume(AddTagEvent event) {
         tagsById.put(event.id(), event.tag());
     }
+
+    public void consume(RemoveTagEvent event) {
+        tagsById.remove(event.id(), event.tag());
+    }
 }

@@ -6,6 +6,7 @@ package io.github.iamdanfox;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 
 import java.util.Optional;
@@ -32,16 +33,24 @@ public class RecipeStoreTest {
     public void add_tag_event_means_response_contains_that_tag() {
         RecipeStore store = prefilled1();
 
-        store.consume(AddTagEvent.builder()
-                .id(Literals.ID)
-                .tag(Literals.TAG)
-                .build());
+        store.consume(Literals.ADD_TAG);
 
         RecipeResponse response = store.getRecipeById(Literals.ID).get();
         assertThat(response.tags(), contains(Literals.TAG));
     }
 
-    public static RecipeStore prefilled1() {
+    @Test
+    public void remove_tag_event_means_response_contains_that_tag() {
+        RecipeStore store = prefilled1();
+
+        store.consume(Literals.ADD_TAG);
+        store.consume(Literals.REMOVE_TAG);
+
+        RecipeResponse response = store.getRecipeById(Literals.ID).get();
+        assertThat(response.tags(), is(empty()));
+    }
+
+    private static RecipeStore prefilled1() {
         RecipeStore store = new RecipeStore();
         store.consume(RecipeCreatedEvent.builder()
                 .id(Literals.ID)
