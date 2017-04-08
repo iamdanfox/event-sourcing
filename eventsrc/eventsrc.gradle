@@ -8,9 +8,26 @@ testSets {
     integTest
 }
 
-dependencies {
-    compile 'org.apache.kafka:kafka-clients:0.10.1.1'
+tasks.build.dependsOn integTest
 
+dependencies {
+    compile 'com.fasterxml.jackson.core:jackson-annotations:2.7.4'
+    compile 'com.fasterxml.jackson.core:jackson-databind:2.7.4'
+    compile 'org.apache.kafka:kafka-clients:0.10.1.1'
+    compile project(':eventsrc-api')
+
+    processor 'org.immutables:value:2.4.3'
+
+    testCompile 'com.fasterxml.jackson.core:jackson-databind:2.7.4'
+    testCompile 'junit:junit:4.12'
+    testCompile 'org.hamcrest:hamcrest-all:1.3'
+    testCompile 'org.hamcrest:hamcrest-core:1.3'
+    testCompile 'org.hamcrest:hamcrest-library:1.3'
+
+    integTestCompile 'com.palantir.docker.compose:docker-compose-rule-core:0.31.1'
     integTestCompile 'com.palantir.docker.compose:docker-compose-rule-junit4:0.31.1'
+    integTestCompile 'junit:junit:4.12'
+    integTestCompile 'org.hamcrest:hamcrest-core:1.3'
+    integTestCompile 'org.hamcrest:hamcrest-library:1.3'
     integTestRuntime 'ch.qos.logback:logback-classic:1.2.1'
 }

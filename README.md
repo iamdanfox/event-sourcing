@@ -124,7 +124,7 @@ public void round_trip_serialization() throws Exception {
 }
 ```
 
-# Integration test (Docker TDD)
+# Dockerized integration test
 
 I need to write some Java to put events into a Kafka topic using a 'Kafka producer'.
 A bit of Googling suggests that I need the [`kafka-clients` Jar](https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients).  
@@ -181,3 +181,78 @@ machine:
   services:
     - docker
 ```
+
+# Write a producer!
+
+Now that I've got my integration test setup working, I can actually start implementing things.  
+How on earth do I make a producer? Consult Google. Find [tutorial](http://www.javaworld.com/article/3060078/big-data/big-data-messaging-with-kafka-part-1.html).
+
+Apparently, we'll need a `java.util.Properties` object with:
+
+```
+BOOTSTRAP_SERVERS_CONFIG: 192.168.99.100:9092
+KEY_SERIALIZER_CLASS_CONFIG: org.apache.kafka.common.serialization.ByteArraySerializer
+VALUE_SERIALIZER_CLASS_CONFIG: org.apache.kafka.common.serialization.StringSerializer
+```
+
+I set up a producer and see what happens:
+
+```js
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+
+try (Producer<String, String> producer = new KafkaProducer<>(properties)) {
+    ProducerRecord<String, String> record = new ProducerRecord<>("topic-name", "value");
+    producer.send(record);
+}
+```
+
+Interestingly, the test passes pretty quickly, but I get some concerning log lines:
+
+```
+WARN  [02:09:06.787 kafka-producer-network-thread | producer-1] org.apache.kafka.clients.NetworkClient: Error while fetching metadata with correlation id 0 : {topic-name=LEADER_NOT_AVAILABLE}
+INFO  [02:09:06.995 main] org.apache.kafka.clients.producer.KafkaProducer: Closing the Kafka producer with timeoutMillis = 9223372036854775807 ms.
+```
+
+Is that send call really working?  Seems strange that it's returning so quickly without throwing or anything.
+Bam! Eclipse tells me it returns a Future.  Looks like we were stopping the test before the poor producer got a change to actually send anything!  I convert this to blocking code and hit run:
+
+```java
+Future<RecordMetadata> send = producer.send(record);
+RecordMetadata metadata = send.get(10, TimeUnit.SECONDS);
+System.out.println(metadata.offset());
+```
+
+Success! Returning a nice round `0`.  I wrap the whole thing in a loop and run it a few times.  It takes 2.7 seconds to commit 1000 messages.  Happy days!
+
+As a stab in the dark to make this pass on CI, I switch out my docker-machine IP address for `localhost` if the `CI` environment variable is detected.  Green light on CI.
+
+Honestly, I'm a bit suspicious at this point. Seems too easy.  I'd like to see that my test is actually working properly on CI.
+I switch on DockerComposeRule's built in log collection:
+
+```java
+@ClassRule
+public static final DockerComposeRule docker = DockerComposeRule.builder()
+        .file("../docker-compose.yml")
+        .saveLogsTo(circleAwareLogDirectory(KafkaProducerIntegrationTest.class))
+        .build();
+```
+
+This means every time we run the test, DCR will write logs to `eventsrc/build/dockerLogs/KafkaProducerIntegrationTest/{kafka,zookeeper}.log`.
+On Circle, these logs will go straight to the $CIRCLE_ARTIFACTS directory, ready for collection at the end of the run.
+
+As suspected, Circle was not actually running my integration test!  I sheepishly add `tasks.build.dependsOn integTest` to my eventsrc.gradle file and dial up logging!  Red build.  Looks like circle's version of docker compose is too old.  I add a script to manually install a more recent version from the github release.  Looks like we also need to manually install docker!
+
+Failures now happening because locally, Kafka is advertising its host as 192.168.99.100, but on CI, it should be localhost.
+We can get round this with a temporary hack of different docker-compose.yml files on CI vs locally, but this is super nasty.
+Gonna add stuff to /etc/hosts instead.  Weirdly this isn't working.  Strikes me that this whole problem goes away if we just
+require Docker for Mac only and drop support for docker-machine!! Green light!
+
+# Produce real events
+
+So far, I've just put a String into Kafka.  Time to fire off some JSON!  I implement `org.apache.kafka.common.serialization.Serializer` and call jackson's ObjectMapper#writeValueAsBytes.
+A new `RecipeCreatedEvent` then goes onto the topic nicely.  Not sure what I should be doing with my `RecipeId`.
+I know Kafka has a `Key` field, but I think this is more for fine-grained partition control... I'm going to leave that null.
+
+Frustratingly, my test currently doesn't actually validate that sensible bytes end up in Kafka (I've only implemented the write path, not the read one).
