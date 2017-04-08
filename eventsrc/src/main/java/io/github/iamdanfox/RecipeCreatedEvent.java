@@ -17,6 +17,11 @@ public interface RecipeCreatedEvent extends Event {
 
     CreateRecipe create();
 
+    @Override
+    default void match(Matcher matcher) {
+        matcher.match(this);
+    }
+
     static ImmutableRecipeCreatedEvent.Builder builder() {
         return ImmutableRecipeCreatedEvent.builder();
     }

@@ -10,6 +10,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.Test;
 
 public class RecipeStoreTest {
@@ -33,7 +34,7 @@ public class RecipeStoreTest {
     public void add_tag_event_means_response_contains_that_tag() {
         RecipeStore store = prefilled1();
 
-        store.consume(Literals.ADD_TAG);
+        store.match(Literals.ADD_TAG);
 
         RecipeResponse response = store.getRecipeById(Literals.ID).get();
         assertThat(response.tags(), contains(Literals.TAG));
@@ -43,8 +44,8 @@ public class RecipeStoreTest {
     public void remove_tag_event_means_response_contains_that_tag() {
         RecipeStore store = prefilled1();
 
-        store.consume(Literals.ADD_TAG);
-        store.consume(Literals.REMOVE_TAG);
+        Stream.of(Literals.ADD_TAG, Literals.ADD_TAG, Literals.REMOVE_TAG, Literals.REMOVE_TAG)
+                .forEach(store::consume);
 
         RecipeResponse response = store.getRecipeById(Literals.ID).get();
         assertThat(response.tags(), is(empty()));
@@ -52,7 +53,7 @@ public class RecipeStoreTest {
 
     private static RecipeStore prefilled1() {
         RecipeStore store = new RecipeStore();
-        store.consume(RecipeCreatedEvent.builder()
+        store.match(RecipeCreatedEvent.builder()
                 .id(Literals.ID)
                 .create(CreateRecipe.builder()
                         .contents("recipe contents")

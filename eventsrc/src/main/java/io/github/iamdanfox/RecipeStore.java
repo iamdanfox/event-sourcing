@@ -6,12 +6,13 @@ package io.github.iamdanfox;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import io.github.iamdanfox.Event.Matcher;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-public class RecipeStore {
+public class RecipeStore implements Matcher {
 
     private final Map<RecipeId, String> contentsById = new HashMap<>();
     private final Multimap<RecipeId, RecipeTag> tagsById = HashMultimap.create();
@@ -34,15 +35,23 @@ public class RecipeStore {
         return Optional.of(response);
     }
 
-    public void consume(RecipeCreatedEvent event) {
+    @Override
+    public void match(RecipeCreatedEvent event) {
         contentsById.put(event.id(), event.create().contents());
     }
 
-    public void consume(AddTagEvent event) {
+    @Override
+    public void match(AddTagEvent event) {
         tagsById.put(event.id(), event.tag());
     }
 
-    public void consume(RemoveTagEvent event) {
+    @Override
+    public void match(RemoveTagEvent event) {
         tagsById.remove(event.id(), event.tag());
     }
+
+    public void consume(Event event) {
+        event.match(this);
+    }
+
 }

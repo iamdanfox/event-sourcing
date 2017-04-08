@@ -18,6 +18,11 @@ public interface RemoveTagEvent extends Event {
 
     RecipeTag tag();
 
+    @Override
+    default void match(Matcher matcher) {
+        matcher.match(this);
+    }
+
     static Builder builder() {
         return ImmutableRemoveTagEvent.builder();
     }

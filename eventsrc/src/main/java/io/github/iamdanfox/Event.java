@@ -17,4 +17,12 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 public interface Event {
 
     RecipeId id();
+
+    void match(Matcher matcher);
+
+    interface Matcher {
+        void match(RecipeCreatedEvent event);
+        void match(AddTagEvent event);
+        void match(RemoveTagEvent event);
+    }
 }
