@@ -243,3 +243,7 @@ This means every time we run the test, DCR will write logs to `eventsrc/build/do
 On Circle, these logs will go straight to the $CIRCLE_ARTIFACTS directory, ready for collection at the end of the run.
 
 As suspected, Circle was not actually running my integration test!  I sheepishly add `tasks.build.dependsOn integTest` to my eventsrc.gradle file and dial up logging!  Red build.  Looks like circle's version of docker compose is too old.  I add a script to manually install a more recent version from the github release.  Looks like we also need to manually install docker!
+
+Failures now happening because locally, Kafka is advertising its host as 192.168.99.100, but on CI, it should be localhost.
+We can get round this with a temporary hack of different docker-compose.yml files on CI vs locally, but this is super nasty.
+Gonna add stuff to /etc/hosts instead.
