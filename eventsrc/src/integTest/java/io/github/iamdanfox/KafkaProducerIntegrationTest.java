@@ -40,10 +40,30 @@ public class KafkaProducerIntegrationTest {
                 properties,
                 new ByteArraySerializer(),
                 new StringSerializer())) {
-            ProducerRecord<byte[], String> record = new ProducerRecord<>("topic-name", "value");
+            ProducerRecord<byte[], String> record = new ProducerRecord<>("smoke_test", "value");
             Future<RecordMetadata> send = producer.send(record);
             RecordMetadata metadata = send.get(10, TimeUnit.SECONDS);
             assertThat(metadata.offset(), is(0L));
+        }
+    }
+
+    @Test
+    public void send_json() throws InterruptedException, ExecutionException, TimeoutException {
+        Event event = ImmutableRecipeCreatedEvent.builder()
+                .id(RecipeId.fromString("id"))
+                .create(ImmutableCreateRecipe.builder()
+                        .contents("contents")
+                        .build())
+                .build();
+
+        try (Producer<byte[], Event> producer = new KafkaProducer<>(
+                properties,
+                new ByteArraySerializer(),
+                new KafkaJacksonSerializer<>())) {
+            ProducerRecord<byte[], Event> record = new ProducerRecord<>("send_json", event);
+            Future<RecordMetadata> send = producer.send(record);
+            RecordMetadata metadata = send.get(10, TimeUnit.SECONDS);
+            assertThat(metadata.serializedValueSize(), is(63));
         }
     }
 

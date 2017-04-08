@@ -247,4 +247,12 @@ As suspected, Circle was not actually running my integration test!  I sheepishly
 Failures now happening because locally, Kafka is advertising its host as 192.168.99.100, but on CI, it should be localhost.
 We can get round this with a temporary hack of different docker-compose.yml files on CI vs locally, but this is super nasty.
 Gonna add stuff to /etc/hosts instead.  Weirdly this isn't working.  Strikes me that this whole problem goes away if we just
-require Docker for Mac only and drop support for docker-machine!!
+require Docker for Mac only and drop support for docker-machine!! Green light!
+
+# Produce real events
+
+So far, I've just put a String into Kafka.  Time to fire off some JSON!  I implement `org.apache.kafka.common.serialization.Serializer` and call jackson's ObjectMapper#writeValueAsBytes.
+A new `RecipeCreatedEvent` then goes onto the topic nicely.  Not sure what I should be doing with my `RecipeId`.
+I know Kafka has a `Key` field, but I think this is more for fine-grained partition control... I'm going to leave that null.
+
+Frustratingly, my test currently doesn't actually validate that sensible bytes end up in Kafka (I've only implemented the write path, not the read one).
