@@ -342,22 +342,21 @@ For now, my RecipeStore is pretty simple because it only handles one type of eve
 
 ```java
 public class RecipeStore {
-    private final Map<RecipeId, RecipeResponse> recipeById;
-
-    public RecipeStore() {
-        recipeById = new HashMap<>();
-    }
+    private final Map<RecipeId, String> contentsById = new HashMap<>();
 
     public Optional<RecipeResponse> getRecipeById(RecipeId id) {
-        return Optional.ofNullable(recipeById.get(id));
+        return Optional.ofNullable(contentsById.get(id))
+                .map(contents -> {
+                    return RecipeResponse.builder()
+                            .id(id)
+                            .contents(contents)
+                            .build();
+                });
+
     }
 
     public void consume(RecipeCreatedEvent event) {
-        RecipeResponse response = RecipeResponse.builder()
-                .id(event.id())
-                .contents(event.create().contents())
-                .build();
-        recipeById.put(event.id(), response);
+        contentsById.put(event.id(), event.create().contents());
     }
 }
 ```
