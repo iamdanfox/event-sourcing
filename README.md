@@ -60,3 +60,124 @@ world
 ```
 
 Lovely. `Ctrl-C` to kill this consumer and then re-run produces exactly the same values.  I mash a few keys into the producer and watch them appear on the consumer CLI.  Slightly surprised at the latency... this doesn't seem to be blazing on my docker containers.
+
+# Time for Java
+
+The whole point of this thing was to try to build a CRUD app using event sourcing.  I think I'm going to build something to store recipes. I start by adding an API project in my `settings.gradle`:
+
+```
+include 'eventsrc'
+include 'eventsrc-api'
+```
+
+I'll use jackson and the jax-rs annotations to define some server interfaces and value types.  `./gradlew eclipse` gets my IDE going.  This server interface can be re-used to create strongly typed http clients using feign.
+
+```java
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+
+@Path("/")
+public interface RecipeService {
+
+    @GET
+    @Path("recipes/:id")
+    RecipeResponse getRecipe(@PathParam("id") RecipeId id);
+
+    @POST
+    @Path("recipes")
+    RecipeResponse createRecipe(CreateRecipe create);
+}
+```
+
+The GET endpoint is pretty straightforward.  I'm just wrapping the id literal because I've got fed up of having unknown strings and longs everywhere.  It returns a full `RecipeResponse` object which includes the `RecipeId` to make things nice and RESTful.
+
+The `createRecipe` endpoint is not idempotent - every time you call it, we'll make up an ID and store the recipe.  The body of this POST request is another `CreateRecipe` object.
+
+I'm using Google's immutables annotation processor to make these value classes to avoid a bit of boilerplate:
+
+```java
+@Value.Immutable
+@JsonSerialize
+@JsonDeserialize(as = ImmutableRecipe.class)
+public interface RecipeResponse {
+
+    RecipeId id();
+
+    String contents();
+}
+```
+
+A quick serialization test ensures that my Jackson annotations work and Immutables is still generating sensible code!
+
+```java
+@Test
+public void round_trip_serialization() throws Exception {
+    RecipeResponse original = ImmutableRecipeResponse.builder()
+            .id(RecipeId.fromString("some-id"))
+            .contents("my recipe")
+            .build();
+    ObjectMapper mapper = new ObjectMapper();
+    String string = mapper.writeValueAsString(original);
+    assertThat(mapper.readValue(string, RecipeResponse.class), is(original));
+}
+```
+
+# Integration test (Docker TDD)
+
+I need to write some Java to put events into a Kafka topic using a 'Kafka producer'.
+A bit of Googling suggests that I need the [`kafka-clients` Jar](https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients).  
+I wonder what version I should pick - matching my docker image seems like a good idea.  
+Unfortunately, I'm using `latest` which isn't an immutable tag.
+I don't really understand the versioning scheme, but 0.10.1.1 seems [pretty recent](https://hub.docker.com/r/wurstmeister/kafka/tags/).
+I update the docker-compose.yml and add the jar to my `eventsrc.gradle`:
+
+```groovy
+dependencies {
+    compile 'org.apache.kafka:kafka-clients:0.10.1.1'
+}
+```
+
+I'm going to use Palantir's [docker-compose-rule](https://github.com/palantir/docker-compose-rule) to write a JUnit integration test that proves I can write stuff to Kafka.  I'm using the gradle testsets plugin to add a `integTest` source set.  This ensures I can keep my slower integration tests separate from my fast unit tests and do the following:
+
+```groovy
+dependencies {
+    ...
+    integTestCompile 'com.palantir.docker.compose:docker-compose-rule-junit4:0.31.1'
+}
+```
+
+I try to run my first integration test but immediately find that logging isn't set up:
+
+```java
+public class KafkaProducerIntegrationTest {
+    @ClassRule
+    public static final DockerComposeRule docker = DockerComposeRule.builder()
+            .file("../docker-compose.yml")
+            .build();
+    @Test
+    public void smoke_test() {}
+}
+```
+
+```
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+```
+
+Clearly, I need an slf4j implementation.  I add a `logback-test.xml` file and take a runtime dependency on logback.  Loglines coming through loud and clear.  New error: "Couldn't connect to Docker daemon".  
+This happens because JUnit doesn't know how to connect to my docker-machine.
+I can add some environment variables from the `docker-machine env` command to my Eclipse run configuration to fix this:
+```
+export DOCKER_TLS_VERIFY="1"
+export DOCKER_HOST="tcp://192.168.99.100:2376"
+export DOCKER_CERT_PATH="/Users/dfox/.docker/machine/machines/big"
+```
+My empty JUnit test method is passing locally now.  I wonder if it'll work on CI.  I add the following to my circle.yml and cross my fingers.
+```
+machine:
+  services:
+    - docker
+```
