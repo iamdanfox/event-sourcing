@@ -24,10 +24,7 @@ public class RecipeStoreTest {
     @Test
     public void created_event_makes_lookup_succeed() {
         RecipeStore store = prefilled1();
-        assertThat(store.getRecipeById(Literals.ID), is(Optional.of(RecipeResponse.builder()
-                .id(Literals.ID)
-                .contents("recipe contents")
-                .build())));
+        assertThat(store.getRecipeById(Literals.ID), is(Optional.of(Literals.RECIPE_RESPONSE)));
     }
 
     @Test
