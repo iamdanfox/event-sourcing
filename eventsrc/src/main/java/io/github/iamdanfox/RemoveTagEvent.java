@@ -7,22 +7,24 @@ package io.github.iamdanfox;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.github.iamdanfox.ImmutableRemoveTagEvent.Builder;
 import org.immutables.value.Value;
 
-@JsonTypeName("created.1")
+@JsonTypeName("remove-tag.1")
 @Value.Immutable
 @JsonSerialize
-@JsonDeserialize(as = ImmutableRecipeCreatedEvent.class)
-public interface RecipeCreatedEvent extends Event {
+@JsonDeserialize(as = ImmutableRemoveTagEvent.class)
+public interface RemoveTagEvent extends Event {
 
-    CreateRecipe create();
+    RecipeTag tag();
 
     @Override
     default void match(Matcher matcher) {
         matcher.match(this);
     }
 
-    static ImmutableRecipeCreatedEvent.Builder builder() {
-        return ImmutableRecipeCreatedEvent.builder();
+    static Builder builder() {
+        return ImmutableRemoveTagEvent.builder();
     }
 }
+

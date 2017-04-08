@@ -256,3 +256,118 @@ A new `RecipeCreatedEvent` then goes onto the topic nicely.  Not sure what I sho
 I know Kafka has a `Key` field, but I think this is more for fine-grained partition control... I'm going to leave that null.
 
 Frustratingly, my test currently doesn't actually validate that sensible bytes end up in Kafka (I've only implemented the write path, not the read one).
+
+# Consume events
+
+If my microservice is going to expose nice CRUD endpoints, it needs to consume events from Kafka and answer questions about the current state of the world.  I'll add an extra test method to check I can consume simple json objects.
+
+```java
+try (Consumer<byte[], String> consumer = new KafkaConsumer<>(
+        consumerProperties(),
+        new ByteArrayDeserializer(),
+        new StringDeserializer())) {
+    consumer.subscribe(ImmutableList.of("consume_something"));
+    ConsumerRecords<byte[], String> poll = consumer.poll(100L);
+    System.out.println(poll);
+}
+```
+
+It looks like this guy needs some different properties though.  The `CLIENT_ID_CONFIG` makes sense to me, but the `GROUP_ID_CONFIG` isn't super clear.  Luckily the [Kafka docs](https://kafka.apache.org/documentation/#intro_consumers) help.
+It seems like in my case, I would just have one consumergroup per instance of my microservice (because I want all instances to receive all messages).
+
+Test is passing, but frustratingly, the `ConsumerRecords` is empty.  Perhaps the producer doesn't read from the beginning of history by default?  I add an extra println which attests that the consumer is definitely starting from `{consume_something-0=0}`.
+
+```java
+System.out.println(consumer.beginningOffsets(
+        ImmutableList.of(new TopicPartition("consume_something", 0))));
+```
+
+For my own sanity, I want to verify the record really got written. I add `.skipShutdown(true)` to DockerComposeRule
+and after the next run terminates, exec into the container and run:
+
+```
+$ kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic consume_something --from-beginning
+{"type":"created.1","id":"id","create":{"contents":"contents"}}
+^CProcessed a total of 1 messages
+```
+
+Well, my JSON message is definitely there.  Interestingly, if I leave off --from-beginning, I get zero messages.
+Some Googling suggests I need to set the equivalent of this flag for my Java consumer.  I add the following property:
+
+```java
+props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+```
+
+As a stab in the dark, I try wrapping my poll invocation in a for loop and ask it to poll 100 times.  
+SUCCESS! I instantly get counts spewed out to my console:
+
+```
+0
+1
+0
+0
+0
+...
+```
+
+Perhaps my first 100ms timeout was too slow?  I try dialing it up to 5000ms.  Yep, that's done the trick.  
+Message received first time.  Perhaps zookeeper on my little docker containers is just slow setting up consumers.
+
+Time to find a Jackson implementation of Kafka's `Deserializer<T>`. Strange that there doesn't seem to be a maven artifact
+I can just depend on here.  Nevermind, it's only 40 lines of code.
+
+# Event reducer (aggregator)
+
+The core of the Event Sourcing pattern is that you store an immutable history of 'events' which are changes to your domain concepts.  Services consume all these events to build up their view of the world.
+
+I'd like to optimise for at-least once delivery, so the API will need to be as idempotent as possible.
+Specifically, if one message is delivered multiple times to a consumer, nothing bad should happen.
+For example, SQL's `INSERT` commands are not idempotent (because a second invocation will fail) whereas
+`UPSERT` commands are idempotent.  From an eventing perspective, events like `increment` won't work,
+whereas `set-field-to-x` events would be idempotent.
+
+To exercise this system a bit more, I need to flesh out my domain a bit more.  Let's expand the concept of a `Recipe` to include:
+
+- the notion of 'contents' (string)
+- an author
+- a created time
+- last modified
+- contributors
+- tags
+
+This should make things more interesting!
+
+Let's start with a simple implementation that assumes exactly once delivery for simplicity!  Since this can be a completely self-contained class, I'm going to TDD it.  I create the `RecipeStoreTest` class and write my first method.  I can now use IDE prompts to fill in the implementation of the `RecipeStore`.  
+For now, my RecipeStore is pretty simple because it only handles one type of event:
+
+```java
+public class RecipeStore {
+    private final Map<RecipeId, String> contentsById = new HashMap<>();
+
+    public Optional<RecipeResponse> getRecipeById(RecipeId id) {
+        return Optional.ofNullable(contentsById.get(id))
+                .map(contents -> {
+                    return RecipeResponse.builder()
+                            .id(id)
+                            .contents(contents)
+                            .build();
+                });
+
+    }
+
+    public void consume(RecipeCreatedEvent event) {
+        contentsById.put(event.id(), event.create().contents());
+    }
+}
+```
+
+Time to add more events!  Let's do tags first.  We'll have `AddTagEvent` and `RemoveTagEvent` objects.  
+This is where I wish Java had Algebraic Data Types (aka sum types).  I extend my `RecipeStore` with one of Guava's MultiMaps:
+
+```java
+private final Map<RecipeId, String> contentsById = new HashMap<>();
+private final Multimap<RecipeId, RecipeTag> tagsById = HashMultimap.create();
+```
+
+I wonder whether this whole store will need to be synchronized eventually?  
+Yes, it would degrade performance slightly, but I bet it'll still be drastically better than any kind of network database lookup you could do!

@@ -17,6 +17,7 @@ public class RecipeResonseTest {
         RecipeResponse original = ImmutableRecipeResponse.builder()
                 .id(RecipeId.fromString("some-id"))
                 .contents("my recipe")
+                .addTags(RecipeTag.fromString("tag"))
                 .build();
         ObjectMapper mapper = new ObjectMapper();
         String string = mapper.writeValueAsString(original);

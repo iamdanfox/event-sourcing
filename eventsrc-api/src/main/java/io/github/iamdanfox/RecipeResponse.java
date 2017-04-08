@@ -6,6 +6,7 @@ package io.github.iamdanfox;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import java.util.Set;
 import org.immutables.value.Value;
 
 @Value.Immutable
@@ -16,4 +17,10 @@ public interface RecipeResponse {
     RecipeId id();
 
     String contents();
+
+    Set<RecipeTag> tags();
+
+    static ImmutableRecipeResponse.Builder builder() {
+        return ImmutableRecipeResponse.builder();
+    }
 }
