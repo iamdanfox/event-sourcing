@@ -362,7 +362,9 @@ public class RecipeStore {
 ```
 
 Time to add more events!  Let's do tags first.  We'll have `AddTagEvent` and `RemoveTagEvent` objects.  
-This is where I wish Java had Algebraic Data Types (aka sum types).  I extend my `RecipeStore` with one of Guava's MultiMaps:
+This is where I wish Java had Algebraic Data Types (aka sum types).  
+I've had to introduce a visitor pattern because the store needs to receive an arbitrary list of events and do the right thing.
+I extend my `RecipeStore` with one of Guava's MultiMaps:
 
 ```java
 private final Map<RecipeId, String> contentsById = new HashMap<>();
@@ -371,3 +373,16 @@ private final Multimap<RecipeId, RecipeTag> tagsById = HashMultimap.create();
 
 I wonder whether this whole store will need to be synchronized eventually?  
 Yes, it would degrade performance slightly, but I bet it'll still be drastically better than any kind of network database lookup you could do!
+
+# Blocking calls to the RecipeStore
+
+Scenario:
+- User fires off 'POST' endpoint to add a tag to some recipe
+- The frontend needs to render the official server-produced version of the Recipe
+
+Problem:
+- If we immediately query our local `RecipeStore` after sending the `AddTagEvent` up to Kafka, the `RecipeStore` may return an answer before consuming our new `AddTagEvent`, thereby producing an out of data Response!
+
+Clearly, we need a way to block API calls and account for Kafka's latency.
+I think Kafka's built in concept of offsets will work perfectly here: when we successfully submit an event to Kafka, we receive it's offset in return.  
+Since the RecipeStore will only ever consume events with monotonically increasing offsets, we can just block until the RecipeStore has consumed our new event.
