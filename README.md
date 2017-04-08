@@ -124,7 +124,7 @@ public void round_trip_serialization() throws Exception {
 }
 ```
 
-# Integration test (Docker TDD)
+# Dockerized integration test
 
 I need to write some Java to put events into a Kafka topic using a 'Kafka producer'.
 A bit of Googling suggests that I need the [`kafka-clients` Jar](https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients).  
@@ -181,3 +181,47 @@ machine:
   services:
     - docker
 ```
+
+# Write a producer!
+
+Now that I've got my integration test setup working, I can actually start implementing things.  
+How on earth do I make a producer? Consult Google. Find [tutorial](http://www.javaworld.com/article/3060078/big-data/big-data-messaging-with-kafka-part-1.html).
+
+Apparently, we'll need a `java.util.Properties` object with:
+
+```
+BOOTSTRAP_SERVERS_CONFIG: 192.168.99.100:9092
+KEY_SERIALIZER_CLASS_CONFIG: org.apache.kafka.common.serialization.ByteArraySerializer
+VALUE_SERIALIZER_CLASS_CONFIG: org.apache.kafka.common.serialization.StringSerializer
+```
+
+I set up a producer and see what happens:
+
+```js
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+
+try (Producer<String, String> producer = new KafkaProducer<>(properties)) {
+    ProducerRecord<String, String> record = new ProducerRecord<>("topic-name", "value");
+    producer.send(record);
+}
+```
+
+Interestingly, the test passes pretty quickly, but I get some concerning log lines:
+
+```
+WARN  [02:09:06.787 kafka-producer-network-thread | producer-1] org.apache.kafka.clients.NetworkClient: Error while fetching metadata with correlation id 0 : {topic-name=LEADER_NOT_AVAILABLE}
+INFO  [02:09:06.995 main] org.apache.kafka.clients.producer.KafkaProducer: Closing the Kafka producer with timeoutMillis = 9223372036854775807 ms.
+```
+
+Is that send call really working?  Seems strange that it's returning so quickly without throwing or anything.
+Bam! Eclipse tells me it returns a Future.  Looks like we were stopping the test before the poor producer got a change to actually send anything!  I convert this to blocking code and hit run:
+
+```java
+Future<RecordMetadata> send = producer.send(record);
+RecordMetadata metadata = send.get(10, TimeUnit.SECONDS);
+System.out.println(metadata.offset());
+```
+
+Success! Returning a nice round `0`.  I wrap the whole thing in a loop and run it a few times.  It takes 2.7 seconds to commit 1000 messages.  Happy days!
