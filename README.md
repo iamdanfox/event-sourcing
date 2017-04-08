@@ -246,4 +246,5 @@ As suspected, Circle was not actually running my integration test!  I sheepishly
 
 Failures now happening because locally, Kafka is advertising its host as 192.168.99.100, but on CI, it should be localhost.
 We can get round this with a temporary hack of different docker-compose.yml files on CI vs locally, but this is super nasty.
-Gonna add stuff to /etc/hosts instead.
+Gonna add stuff to /etc/hosts instead.  Weirdly this isn't working.  Strikes me that this whole problem goes away if we just
+require Docker for Mac only and drop support for docker-machine!!

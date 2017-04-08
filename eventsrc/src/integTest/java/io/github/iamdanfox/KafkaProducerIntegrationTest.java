@@ -48,7 +48,7 @@ public class KafkaProducerIntegrationTest {
 
     private static Properties properties() {
         Properties props = new Properties();
-        props.put(BOOTSTRAP_SERVERS_CONFIG, "kafka-etc-hosts-alias:9092");
+        props.put(BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
         props.put(KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
         props.put(VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         return props;
