@@ -10,7 +10,6 @@ import com.google.common.collect.Sets;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class OffsetCompletableFutures {
@@ -18,7 +17,7 @@ public class OffsetCompletableFutures {
     private AtomicLong maxOffsetSeenAlready = new AtomicLong(-1);
     private final Set<BlockingCondition> listeners = Sets.newConcurrentHashSet();
 
-    public Future<?> forOffset(long waitForOffset) {
+    public CompletableFuture<?> forOffset(long waitForOffset) {
         if (maxOffsetSeenAlready.get() >= waitForOffset) {
             return CompletableFuture.completedFuture(null);
         }

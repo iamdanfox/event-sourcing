@@ -10,6 +10,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
+import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -19,16 +21,18 @@ public class RecipeResource implements RecipeService {
     private final BlockingRecipeStores recipeStores;
     private final Producer<?, Event> producer;
     private final String topic;
+    private final RecipeStore readStore;
 
     public RecipeResource(BlockingRecipeStores recipeStores, Producer<?, Event> producer, String topic) {
         this.recipeStores = recipeStores;
+        this.readStore = recipeStores.readable();
         this.producer = producer;
         this.topic = topic;
     }
 
     @Override
     public Optional<RecipeResponse> getRecipe(RecipeId id) {
-        return recipeStores.readable().getRecipeById(id);
+        return readStore.getRecipeById(id);
     }
 
     @Override
@@ -50,6 +54,25 @@ public class RecipeResource implements RecipeService {
         long offset = metadata.offset();
         RecipeStore blockingStore = recipeStores.blockingStore(partition, offset);
         return blockingStore.getRecipeById(id).get();
+    }
+
+    public void createRecipe2(CreateRecipe create, Consumer<RecipeResponse> userCallback) {
+        RecipeId id = RecipeId.fromString(UUID.randomUUID().toString());
+        Event value = RecipeCreatedEvent.builder()
+                .id(id)
+                .create(create)
+                .build();
+
+        Callback kafkaCallback = (metadata, exception) -> {
+            int partition = metadata.partition();
+            long offset = metadata.offset();
+            recipeStores.offsetLoaded(partition, offset).thenRun(() -> {
+                RecipeResponse response = readStore.getRecipeById(id).get();
+                userCallback.accept(response);
+            });
+        };
+
+        producer.send(new ProducerRecord<>(topic, value), kafkaCallback);
     }
 
 }

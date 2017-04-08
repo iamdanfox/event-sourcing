@@ -5,6 +5,7 @@
 package io.github.iamdanfox;
 
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.function.Function;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -33,8 +34,12 @@ public class BlockingRecipeStores {
      * at least the specified offset (within the given partition).
      */
     public RecipeStore blockingStore(int partition, long offset) {
-        Future<?> completable = completables.forPartition(partition).forOffset(offset);
+        Future<?> completable = offsetLoaded(partition, offset);
         return createBlockingStore.apply(completable);
+    }
+
+    public CompletableFuture<?> offsetLoaded(int partition, long offset) {
+        return completables.forPartition(partition).forOffset(offset);
     }
 
     /**
