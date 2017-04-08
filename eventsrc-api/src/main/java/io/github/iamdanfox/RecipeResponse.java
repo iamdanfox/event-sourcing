@@ -16,4 +16,8 @@ public interface RecipeResponse {
     RecipeId id();
 
     String contents();
+
+    static ImmutableRecipeResponse.Builder builder() {
+        return ImmutableRecipeResponse.builder();
+    }
 }

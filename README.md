@@ -337,12 +337,27 @@ To exercise this system a bit more, I need to flesh out my domain a bit more.  L
 
 This should make things more interesting!
 
-Let's start with a simple implementation that assumes exactly once delivery for simplicity!  Since this can be a completely self-contained class, I'm going to TDD it.  I create the `RecipeStoreTest` class and write my first method.  I can now use IDE prompts to fill in the implementation of the `RecipeStore`.
+Let's start with a simple implementation that assumes exactly once delivery for simplicity!  Since this can be a completely self-contained class, I'm going to TDD it.  I create the `RecipeStoreTest` class and write my first method.  I can now use IDE prompts to fill in the implementation of the `RecipeStore`.  
+For now, my RecipeStore is pretty simple because it only handles one type of event:
 
 ```java
-@Test
-public void returns_empty_for_lookup_by_id_initially() {
-    RecipeStore store = new RecipeStore();
-    assertThat(store.getRecipeById(RecipeId.fromString("id")), is(Optional.empty()));
+public class RecipeStore {
+    private final Map<RecipeId, RecipeResponse> recipeById;
+
+    public RecipeStore() {
+        recipeById = new HashMap<>();
+    }
+
+    public Optional<RecipeResponse> getRecipeById(RecipeId id) {
+        return Optional.ofNullable(recipeById.get(id));
+    }
+
+    public void consume(RecipeCreatedEvent event) {
+        RecipeResponse response = RecipeResponse.builder()
+                .id(event.id())
+                .contents(event.create().contents())
+                .build();
+        recipeById.put(event.id(), response);
+    }
 }
 ```
