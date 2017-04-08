@@ -48,7 +48,7 @@ public class ResourceIntegrationTest {
             consumerExecutor.submit(() -> {
                 consumer.subscribe(ImmutableList.of("resource_smoke_test"));
                 while (true) {
-                    ConsumerRecords<byte[], Event> poll = consumer.poll(100);
+                    ConsumerRecords<byte[], Event> poll = consumer.poll(40);
                     // System.out.println(poll.count());
                     poll.forEach(recipeStores::consume);
                 }
@@ -67,6 +67,17 @@ public class ResourceIntegrationTest {
         }
     }
 
+    protected void benchmarkBlockingStyle(RecipeResource resource, int count) {
+        Stopwatch stopwatch2 = Stopwatch.createStarted();
+        for (int i = 0; i < count; i++) {
+            resource.createRecipe(CreateRecipe.builder()
+                    .contents("some-contents")
+                    .build());
+        }
+        long micro = stopwatch2.elapsed(TimeUnit.MICROSECONDS);
+        System.out.println("regular:" + micro / count + " microseconds per call (" + count + ")");
+    }
+
     protected void benchmarkCallbackStyle(RecipeResource resource, int count) throws InterruptedException {
         Stopwatch stopwatch = Stopwatch.createStarted();
         CountDownLatch latch = new CountDownLatch(count);
@@ -76,18 +87,7 @@ public class ResourceIntegrationTest {
                     .build(), ignured -> latch.countDown());
         }
         assertThat(latch.await(10, TimeUnit.SECONDS), is(true));
-        long callbackMs = stopwatch.elapsed(TimeUnit.MILLISECONDS);
-        System.out.println("callback style:" + callbackMs + " ms for " + count + "calls");
-    }
-
-    protected void benchmarkBlockingStyle(RecipeResource resource, int count) {
-        Stopwatch stopwatch2 = Stopwatch.createStarted();
-        for (int i = 0; i < count; i++) {
-            resource.createRecipe(CreateRecipe.builder()
-                    .contents("some-contents")
-                    .build());
-        }
-        long ms = stopwatch2.elapsed(TimeUnit.MILLISECONDS);
-        System.out.println("regular:" + ms + " ms for " + count + " calls");
+        long micro = stopwatch.elapsed(TimeUnit.MICROSECONDS);
+        System.out.println("callback:" + micro / count + " microseconds per call (" + count + ")");
     }
 }
