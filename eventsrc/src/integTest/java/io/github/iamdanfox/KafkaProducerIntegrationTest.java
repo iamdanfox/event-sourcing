@@ -6,6 +6,8 @@ package io.github.iamdanfox;
 
 import static com.palantir.docker.compose.logging.LogDirectory.circleAwareLogDirectory;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 
 import com.google.common.collect.ImmutableList;
@@ -15,8 +17,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.StreamSupport;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -91,14 +95,27 @@ public class KafkaProducerIntegrationTest {
                 new StringDeserializer())) {
             consumer.subscribe(ImmutableList.of("consume_something"));
 
-            for (int i = 0; i < 10; i++) {
-                ConsumerRecords<byte[], String> poll = consumer.poll(100L);
-
-                System.out.println(poll.count());
-            }
-
+            String value = repeatPoll(consumer, 10);
+            assertThat(value, containsString("contents"));
         }
 
+    }
+
+    protected String repeatPoll(Consumer<byte[], String> consumer, int retries) {
+        assertThat("Poll should succeed with specified retries", retries, is(greaterThan(0)));
+        ConsumerRecords<byte[], String> poll = consumer.poll(100L);
+
+        if (poll.count() == 0) {
+            System.out.println("Polled empty records, " + (retries - 1) + " retries available...");
+            return repeatPoll(consumer, retries - 1);
+        }
+
+        ConsumerRecord<byte[], String> record =
+                StreamSupport.stream(poll.spliterator(), false)
+                        .findFirst()
+                        .get();
+        System.out.println("Poll succeeded");
+        return record.value();
     }
 
     private static KafkaProducer<byte[], Event> jsonProducer() {
