@@ -1,15 +1,16 @@
 machine:
-  services:
-    - docker
+  environment: { TERM: dumb }
+  services: [ docker ]
+  java: { version: oraclejdk8 }
+  pre:
+    - /home/ubuntu/event-sourcing-experiment/scripts/circleci/install-docker-compose.sh
   environment:
-    TERM: dumb
-  java:
-    version: oraclejdk8
+    DOCKER_COMPOSE_LOCATION: /home/ubuntu/docker-compose
 
 dependencies:
   override:
-    - ./gradlew resolveConfigurations -is
+    - ./gradlew resolveConfigurations
 
 test:
   override:
-    - ./gradlew build --info : { parallel: true, timeout: 300 }
+    - ./gradlew test --info : { parallel: true, timeout: 300 }
