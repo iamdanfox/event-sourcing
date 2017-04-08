@@ -4,6 +4,9 @@
 
 package io.github.iamdanfox;
 
+import static org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
@@ -15,9 +18,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -28,21 +32,25 @@ public class KafkaProducerIntegrationTest {
             .file("../docker-compose.yml")
             .build();
 
+    private static final Properties properties = properties();
+
     @Test
     public void smoke_test() throws InterruptedException, ExecutionException, TimeoutException {
-        Properties properties = new Properties();
-        properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                "192.168.99.100:9092");
-        properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-                "org.apache.kafka.common.serialization.ByteArraySerializer");
-        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                "org.apache.kafka.common.serialization.StringSerializer");
-
         try (Producer<String, String> producer = new KafkaProducer<>(properties)) {
             ProducerRecord<String, String> record = new ProducerRecord<>("topic-name", "value");
             Future<RecordMetadata> send = producer.send(record);
             RecordMetadata metadata = send.get(10, TimeUnit.SECONDS);
-            assertThat(metadata.offset(), is(0));
+            assertThat(metadata.offset(), is(0L));
         }
+    }
+
+    private static Properties properties() {
+        Properties props = new Properties();
+        // local docker-machine requires IP address, unix server on CI
+        String host = System.getenv("CI") != null ? "localhost" : "192.168.99.100";
+        props.put(BOOTSTRAP_SERVERS_CONFIG, host + ":9092");
+        props.put(KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
+        props.put(VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        return props;
     }
 }

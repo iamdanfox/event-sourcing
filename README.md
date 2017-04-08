@@ -225,3 +225,5 @@ System.out.println(metadata.offset());
 ```
 
 Success! Returning a nice round `0`.  I wrap the whole thing in a loop and run it a few times.  It takes 2.7 seconds to commit 1000 messages.  Happy days!
+
+As a stab in the dark to make this pass on CI, I switch out my docker-machine IP address for `localhost` if the `CI` environment variable is detected.
