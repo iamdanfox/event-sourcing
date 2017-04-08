@@ -13,6 +13,7 @@ tasks.build.dependsOn integTest
 dependencies {
     compile 'com.fasterxml.jackson.core:jackson-annotations:2.7.4'
     compile 'com.fasterxml.jackson.core:jackson-databind:2.7.4'
+    compile 'com.google.guava:guava:21.0'
     compile 'org.apache.kafka:kafka-clients:0.10.1.1'
     compile project(':eventsrc-api')
 

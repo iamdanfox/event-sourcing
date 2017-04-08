@@ -362,4 +362,12 @@ public class RecipeStore {
 ```
 
 Time to add more events!  Let's do tags first.  We'll have `AddTagEvent` and `RemoveTagEvent` objects.  
-This is where I wish Java had Algebraic Data Types (aka sum types).
+This is where I wish Java had Algebraic Data Types (aka sum types).  I extend my `RecipeStore` with one of Guava's MultiMaps:
+
+```java
+private final Map<RecipeId, String> contentsById = new HashMap<>();
+private final Multimap<RecipeId, RecipeTag> tagsById = HashMultimap.create();
+```
+
+I wonder whether this whole store will need to be synchronized eventually?  
+Yes, it would degrade performance slightly, but I bet it'll still be drastically better than any kind of network database lookup you could do!

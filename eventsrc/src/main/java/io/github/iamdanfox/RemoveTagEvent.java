@@ -15,6 +15,6 @@ import org.immutables.value.Value;
 @JsonDeserialize(as = ImmutableRemoveTagEvent.class)
 public interface RemoveTagEvent extends Event {
 
-    RecipeTag removeTag();
+    RecipeTag tag();
 }
 

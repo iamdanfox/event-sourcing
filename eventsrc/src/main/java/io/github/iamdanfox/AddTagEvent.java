@@ -7,6 +7,7 @@ package io.github.iamdanfox;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.github.iamdanfox.ImmutableAddTagEvent.Builder;
 import org.immutables.value.Value;
 
 @JsonTypeName("add-tag.1")
@@ -15,5 +16,9 @@ import org.immutables.value.Value;
 @JsonDeserialize(as = ImmutableAddTagEvent.class)
 public interface AddTagEvent extends Event {
 
-    RecipeTag addTag();
+    RecipeTag tag();
+
+    static Builder builder() {
+        return ImmutableAddTagEvent.builder();
+    }
 }
