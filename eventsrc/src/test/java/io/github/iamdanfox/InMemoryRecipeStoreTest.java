@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.Test;
 
-public class RecipeStoreTest {
+public class InMemoryRecipeStoreTest {
 
     @Test
     public void returns_empty_for_lookup_by_id_initially() {
