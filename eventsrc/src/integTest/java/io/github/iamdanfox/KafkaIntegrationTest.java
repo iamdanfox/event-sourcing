@@ -19,12 +19,9 @@ import java.util.stream.StreamSupport;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -35,19 +32,6 @@ public class KafkaIntegrationTest {
             .file("../docker-compose.yml")
             .saveLogsTo(circleAwareLogDirectory(KafkaIntegrationTest.class))
             .build();
-
-    @Test
-    public void smoke_test() throws InterruptedException, ExecutionException, TimeoutException {
-        try (Producer<byte[], String> producer = new KafkaProducer<>(
-                KafkaUtils.properties(),
-                new ByteArraySerializer(),
-                new StringSerializer())) {
-            ProducerRecord<byte[], String> record = new ProducerRecord<>("smoke_test", "value");
-            Future<RecordMetadata> send = producer.send(record);
-            RecordMetadata metadata = send.get(10, TimeUnit.SECONDS);
-            assertThat(metadata.offset(), is(0L));
-        }
-    }
 
     @Test
     public void send_json() throws InterruptedException, ExecutionException, TimeoutException {
