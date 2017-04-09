@@ -11,6 +11,7 @@ import static org.hamcrest.Matchers.is;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.palantir.docker.compose.DockerComposeRule;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -60,14 +61,15 @@ public class ResourceIntegrationTest {
             // sleep to let kafka / zookeeper warm up
             Thread.sleep(2000);
 
-            benchmarkBlockingStyle(resource, 1000);
-            benchmarkCallbackStyle(resource, 5000);
+            benchmarkBlockingWrite(resource, 1000);
+            benchmarkCallbackWrite(resource, 5000);
+            benchmarkReads(resource, 5000);
 
             consumer.wakeup();
         }
     }
 
-    protected void benchmarkBlockingStyle(RecipeResource resource, int count) {
+    protected void benchmarkBlockingWrite(RecipeResource resource, int count) {
         Stopwatch stopwatch2 = Stopwatch.createStarted();
         for (int i = 0; i < count; i++) {
             resource.createRecipe(CreateRecipe.builder()
@@ -78,7 +80,7 @@ public class ResourceIntegrationTest {
         System.out.println("regular:" + micro / count + " microseconds per call (" + count + ")");
     }
 
-    protected void benchmarkCallbackStyle(RecipeResource resource, int count) throws InterruptedException {
+    protected void benchmarkCallbackWrite(RecipeResource resource, int count) throws InterruptedException {
         Stopwatch stopwatch = Stopwatch.createStarted();
         CountDownLatch latch = new CountDownLatch(count);
         for (int i = 0; i < count; i++) {
@@ -89,5 +91,20 @@ public class ResourceIntegrationTest {
         assertThat(latch.await(10, TimeUnit.SECONDS), is(true));
         long micro = stopwatch.elapsed(TimeUnit.MICROSECONDS);
         System.out.println("callback:" + micro / count + " microseconds per call (" + count + ")");
+    }
+
+    protected void benchmarkReads(RecipeResource resource, int count) {
+        RecipeResponse response = resource.createRecipe(CreateRecipe.builder()
+                .contents("some-contents")
+                .build());
+
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        Optional<RecipeResponse> answer = Optional.empty();
+        for (int i = 0; i < count; i++) {
+            answer = resource.getRecipe(response.id());
+        }
+        long nano = stopwatch.elapsed(TimeUnit.NANOSECONDS);
+        assertThat(answer.get().contents(), is("some-contents"));
+        System.out.println("reads:" + nano / count + " ns per call n = " + count);
     }
 }
