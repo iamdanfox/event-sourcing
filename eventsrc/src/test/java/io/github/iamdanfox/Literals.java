@@ -20,4 +20,9 @@ public interface Literals {
             .tag(TAG)
             .build();
 
+    RecipeResponse RECIPE_RESPONSE = RecipeResponse.builder()
+            .id(ID)
+            .contents("recipe contents")
+            .build();
+
 }

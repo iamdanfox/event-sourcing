@@ -13,26 +13,23 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.Test;
 
-public class RecipeStoreTest {
+public class InMemoryRecipeStoreTest {
 
     @Test
     public void returns_empty_for_lookup_by_id_initially() {
-        RecipeStore store = new RecipeStore();
+        RecipeStore store = new InMemoryRecipeStore();
         assertThat(store.getRecipeById(Literals.ID), is(Optional.empty()));
     }
 
     @Test
     public void created_event_makes_lookup_succeed() {
         RecipeStore store = prefilled1();
-        assertThat(store.getRecipeById(Literals.ID), is(Optional.of(RecipeResponse.builder()
-                .id(Literals.ID)
-                .contents("recipe contents")
-                .build())));
+        assertThat(store.getRecipeById(Literals.ID), is(Optional.of(Literals.RECIPE_RESPONSE)));
     }
 
     @Test
     public void add_tag_event_means_response_contains_that_tag() {
-        RecipeStore store = prefilled1();
+        InMemoryRecipeStore store = prefilled1();
 
         store.match(Literals.ADD_TAG);
 
@@ -42,7 +39,7 @@ public class RecipeStoreTest {
 
     @Test
     public void remove_tag_event_means_response_contains_that_tag() {
-        RecipeStore store = prefilled1();
+        WritableRecipeStore store = prefilled1();
 
         Stream.of(Literals.ADD_TAG, Literals.ADD_TAG, Literals.REMOVE_TAG, Literals.REMOVE_TAG)
                 .forEach(store::consume);
@@ -51,8 +48,8 @@ public class RecipeStoreTest {
         assertThat(response.tags(), is(empty()));
     }
 
-    private static RecipeStore prefilled1() {
-        RecipeStore store = new RecipeStore();
+    private static InMemoryRecipeStore prefilled1() {
+        InMemoryRecipeStore store = new InMemoryRecipeStore();
         store.match(RecipeCreatedEvent.builder()
                 .id(Literals.ID)
                 .create(CreateRecipe.builder()

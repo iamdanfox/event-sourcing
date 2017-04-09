@@ -362,7 +362,9 @@ public class RecipeStore {
 ```
 
 Time to add more events!  Let's do tags first.  We'll have `AddTagEvent` and `RemoveTagEvent` objects.  
-This is where I wish Java had Algebraic Data Types (aka sum types).  I extend my `RecipeStore` with one of Guava's MultiMaps:
+This is where I wish Java had Algebraic Data Types (aka sum types).  
+I've had to introduce a visitor pattern because the store needs to receive an arbitrary list of events and do the right thing.
+I extend my `RecipeStore` with one of Guava's MultiMaps:
 
 ```java
 private final Map<RecipeId, String> contentsById = new HashMap<>();
@@ -371,3 +373,67 @@ private final Multimap<RecipeId, RecipeTag> tagsById = HashMultimap.create();
 
 I wonder whether this whole store will need to be synchronized eventually?  
 Yes, it would degrade performance slightly, but I bet it'll still be drastically better than any kind of network database lookup you could do!
+
+# Blocking calls to the RecipeStore
+
+Scenario:
+- User fires off 'POST' endpoint to add a tag to some recipe
+- The frontend needs to render the official server-produced version of the Recipe
+
+Problem:
+- If we immediately query our local `RecipeStore` after sending the `AddTagEvent` up to Kafka, the `RecipeStore` may return an answer before consuming our new `AddTagEvent`, thereby producing an out of data Response!
+
+Clearly, we need a way to block API calls and account for Kafka's latency.
+Kafka's offsets should help here: when we successfully submit an event to Kafka, we receive it's offset in return.  
+If we assume the RecipeStore will only ever consume events with monotonically increasing offsets, we can just block until the RecipeStore has consumed an offset at least as far as new event's offset.
+
+There is a complication however - Kafka topics can be split up into multiple partitions and ordering is only guaranteed within a partition.
+On the face of it, we could still make the RecipeStore track the highest offset processed for each partition.
+
+However, I know that Kafka allows re-partitioning of existing topics (you can increase the number).  Let's just double check that the offsets in partition 0 will not be mutated by this re-partition!
+
+To test this in docker, I produced a few messages (a,b,c,d,e,f) and then re-partitioned:
+```
+$ kafka-topics.sh --zookeeper zookeeper:2181 --describe --topic dan-is-great
+Topic:dan-is-great      PartitionCount:1        ReplicationFactor:1     Configs:
+        Topic: dan-is-great     Partition: 0    Leader: 1001    Replicas: 1001  Isr: 1001
+
+$ kafka-topics.sh --zookeeper zookeeper:2181 --alter --partitions 3 --topic dan-is-great
+WARNING: If partitions are increased for a topic that has a key, the partition logic or ordering of the messages will be affected
+Adding partitions succeeded!
+```
+
+After repartitioning, I wrote a few more strings:
+```
+$ kafka-console-producer.sh --broker-list localhost:9092 --topic dan-is-great                                                 
+alpha
+bravo
+charlie
+delta
+echo
+foxtrot
+```
+
+Clearly, the original partition 0 has not been changed, but messages are now distributed across the partitions (in a round-robin fashion).
+
+```
+$ kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic dan-is-great --from-beginning --partition 0
+a
+b
+c
+d
+e
+f
+charlie
+foxtrot
+
+$ kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic dan-is-great --from-beginning --partition 1
+bravo
+echo
+
+$ kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic dan-is-great --from-beginning --partition 2
+alpha
+delta
+```
+
+This experiment suggests that it's safe for the `RecipeStore` to track the maximum offset seen for each partition.
