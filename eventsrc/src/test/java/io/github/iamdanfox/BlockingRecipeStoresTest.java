@@ -10,6 +10,7 @@ import static org.hamcrest.Matchers.sameInstance;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -26,28 +27,28 @@ public class BlockingRecipeStoresTest {
 
     @Test
     public void consuming_an_event_should_delegate_to_real_store() {
-        stores.consume(consumerRecord());
+        stores.updateMaxOffsets(consumerRecord());
         verify(underlyingStore).consume(event);
     }
 
     @Test
-    public void after_consuming_123_query_for_100_returns_immediately() {
-        stores.consume(consumerRecord());
-        RecipeStore blockingStore = stores.blockingStore(0, 100L);
+    public void after_consuming_123_query_for_100_returns_immediately() throws Exception {
+        stores.updateMaxOffsets(consumerRecord());
+        CompletableFuture<?> blockingStore = stores.offsetLoaded(0, 100L);
 
-        blockingStore.getRecipeById(Literals.ID);
-        verify(underlyingStore).getRecipeById(Literals.ID);
+        blockingStore.get(1, TimeUnit.SECONDS);
     }
 
     @Test
     public void after_consuming_123_query_for_124_blocks() throws Exception {
-        stores.consume(consumerRecord());
-        RecipeStore blockingStore = stores.blockingStore(0, 124L);
+        stores.updateMaxOffsets(consumerRecord());
+        CompletableFuture<?> blockingStore = stores.offsetLoaded(0, 124L);
 
         CountDownLatch latch = new CountDownLatch(1);
         testExecutor.submit(() -> {
-            blockingStore.getRecipeById(Literals.ID);
+            blockingStore.get(2, TimeUnit.SECONDS);
             latch.countDown();
+            return null;
         });
         assertThat("latch should never be released", latch.await(100, TimeUnit.MILLISECONDS), is(false));
     }

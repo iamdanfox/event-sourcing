@@ -50,8 +50,8 @@ public class ResourceIntegrationTest {
                 consumer.subscribe(ImmutableList.of("resource_smoke_test"));
                 while (true) {
                     ConsumerRecords<byte[], Event> poll = consumer.poll(40);
-                    // System.out.println(poll.count());
-                    poll.forEach(recipeStores::consume);
+                    poll.forEach(record -> underlyingStore.consume(record.value()));
+                    poll.forEach(recipeStores::updateMaxOffsets);
                 }
             });
 

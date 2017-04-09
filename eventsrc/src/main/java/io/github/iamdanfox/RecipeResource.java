@@ -6,6 +6,7 @@ package io.github.iamdanfox;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -52,8 +53,13 @@ public class RecipeResource implements RecipeService {
         }
         int partition = metadata.partition();
         long offset = metadata.offset();
-        RecipeStore blockingStore = recipeStores.blockingStore(partition, offset);
-        return blockingStore.getRecipeById(id).get();
+        CompletableFuture<?> blockingStore = recipeStores.offsetLoaded(partition, offset);
+        try {
+            blockingStore.get(5, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
+        return readStore.getRecipeById(id).get();
     }
 
     public void createRecipe2(CreateRecipe create, Consumer<RecipeResponse> userCallback) {
