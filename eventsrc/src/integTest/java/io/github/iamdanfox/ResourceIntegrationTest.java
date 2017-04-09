@@ -50,20 +50,22 @@ public class ResourceIntegrationTest {
                 consumer.subscribe(ImmutableList.of("resource_smoke_test"));
                 while (true) {
                     ConsumerRecords<byte[], Event> poll = consumer.poll(40);
-                    poll.forEach(record -> underlyingStore.consume(record.value()));
-                    poll.forEach(recipeStores::updateMaxOffsets);
+                    poll.forEach(record -> {
+                        underlyingStore.consume(record.value());
+                        recipeStores.updateMaxOffsets(record.partition(), record.offset());
+                    });
                 }
             });
 
             RecipeResource resource = new RecipeResource(
-                    recipeStores, producer, "resource_smoke_test");
+                    underlyingStore, recipeStores, producer, "resource_smoke_test");
 
             // sleep to let kafka / zookeeper warm up
-            Thread.sleep(2000);
+            Thread.sleep(4000);
 
-            benchmarkBlockingWrite(resource, 1000);
+            benchmarkBlockingWrite(resource, 100);
             benchmarkCallbackWrite(resource, 5000);
-            benchmarkReads(resource, 5000);
+            benchmarkReads(resource, 500);
 
             consumer.wakeup();
         }

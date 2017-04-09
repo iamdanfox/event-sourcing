@@ -24,9 +24,13 @@ public class RecipeResource implements RecipeService {
     private final String topic;
     private final RecipeStore readStore;
 
-    public RecipeResource(BlockingRecipeStores recipeStores, Producer<?, Event> producer, String topic) {
+    public RecipeResource(
+            RecipeStore readStore,
+            BlockingRecipeStores recipeStores,
+            Producer<?, Event> producer,
+            String topic) {
+        this.readStore = readStore;
         this.recipeStores = recipeStores;
-        this.readStore = recipeStores.readable();
         this.producer = producer;
         this.topic = topic;
     }
