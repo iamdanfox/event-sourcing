@@ -17,6 +17,7 @@ services:
     ports:
       - "9093:9093"
     environment:
+      KAFKA_PORT: 9093
       KAFKA_LISTENERS: PLAINTEXT://:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-fallback:9093
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181

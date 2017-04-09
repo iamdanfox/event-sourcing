@@ -519,5 +519,19 @@ I'm sure that real world instrumenting and logging and SSL will slow this all do
 
 ## High availability
 
-Now that we have reads and writes working convincingly, I'd like to prove everything still works even when one of my nodes or a Kafka node goes down.
-I think I'll fire off 5000 createRecipe requests and kill a Kafka node halfway through!
+I'm confident that multiple nodes of my own service could be switched on and off without disruption, but I'd also like to prove everything still works even when a Kafka node goes down.
+
+Looks like one of the docker-image bash scripts was spewing the "waiting for kafka to start" error message - fixed by adding a redundant `KAFKA_PORT: 9093` environment variable.
+Verified they are both happy by successfully running:
+
+```
+$ kafka-topics.sh --create --zookeeper zookeeper:2181 --replication-factor 2 --partitions 1 --topic dan-is-great
+```
+
+I also checked that replication of three fails!
+```
+$ kafka-topics.sh --create --zookeeper zookeeper:2181 --replication-factor 3 --partitions 1 --topic dan-is-great2
+Error while executing topic command : replication factor: 3 larger than available brokers: 2
+[2017-04-09 02:20:28,876] ERROR org.apache.kafka.common.errors.InvalidReplicationFactorException: replication factor: 3 larger than available brokers: 2
+ (kafka.admin.TopicCommand$)
+ ```
