@@ -11,7 +11,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -47,9 +46,8 @@ public class RecipeResource implements RecipeService {
                 .id(id)
                 .create(create)
                 .build();
-        Future<RecordMetadata> future = producer.send(new ProducerRecord<>(topic, value));
 
-        block(future);
+        block(producer.send(new ProducerRecord<>(topic, value)));
         return recipeStore.getRecipeById(id).get();
     }
 
@@ -94,23 +92,30 @@ public class RecipeResource implements RecipeService {
         }
     }
 
-    public void createRecipeAsync(CreateRecipe create, Consumer<RecipeResponse> userCallback) {
+    public CompletableFuture<RecipeResponse> createRecipeAsync(CreateRecipe create) {
         RecipeId id = RecipeId.fromString(UUID.randomUUID().toString());
         Event value = RecipeCreatedEvent.builder()
                 .id(id)
                 .create(create)
                 .build();
 
+        CompletableFuture<RecipeResponse> result = new CompletableFuture<>();
+
         Callback kafkaCallback = (metadata, exception) -> {
-            int partition = metadata.partition();
-            long offset = metadata.offset();
-            offsetFutures.offsetLoaded(partition, offset).thenRun(() -> {
-                RecipeResponse response = recipeStore.getRecipeById(id).get();
-                userCallback.accept(response);
-            });
+            try {
+                int partition = metadata.partition();
+                long offset = metadata.offset();
+                offsetFutures.offsetLoaded(partition, offset).thenRun(() -> {
+                    RecipeResponse response = recipeStore.getRecipeById(id).get();
+                    result.complete(response);
+                });
+            } catch (Exception e) {
+                result.completeExceptionally(e);
+            }
         };
 
         producer.send(new ProducerRecord<>(topic, value), kafkaCallback);
+        return result;
     }
 
 }

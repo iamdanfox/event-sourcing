@@ -5,6 +5,7 @@
 package io.github.iamdanfox;
 
 import java.util.Properties;
+import java.util.UUID;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -16,15 +17,15 @@ public interface KafkaUtils {
 
     static Properties properties() {
         Properties props = new Properties();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka:9092");
         return props;
     }
 
     static Properties consumerProperties() {
         Properties props = new Properties();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "randomId"); //UUID.randomUUID().toString());
-        props.put(ConsumerConfig.CLIENT_ID_CONFIG, "client-id-test-consumer");
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka:9092");
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "group-id-" + UUID.randomUUID());
+        props.put(ConsumerConfig.CLIENT_ID_CONFIG, "my-client-" + UUID.randomUUID());
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         return props;
     }
