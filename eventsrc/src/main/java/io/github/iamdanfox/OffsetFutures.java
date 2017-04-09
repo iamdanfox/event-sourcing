@@ -6,11 +6,11 @@ package io.github.iamdanfox;
 
 import java.util.concurrent.CompletableFuture;
 
-public class BlockingRecipeStores {
+public class OffsetFutures {
 
     private final PartitionedOffsetCompletableFutures completables;
 
-    public BlockingRecipeStores(WritableRecipeStore underlyingStore) {
+    public OffsetFutures() {
         this.completables = new PartitionedOffsetCompletableFutures();
     }
 
@@ -19,7 +19,7 @@ public class BlockingRecipeStores {
     }
 
     public CompletableFuture<?> offsetLoaded(int partition, long offset) {
-        return completables.forPartition(partition).forOffset(offset);
+        return completables.forPartition(partition).futureForOffset(offset);
     }
 
 }

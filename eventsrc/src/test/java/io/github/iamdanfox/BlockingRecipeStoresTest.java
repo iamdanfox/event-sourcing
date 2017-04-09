@@ -19,7 +19,7 @@ public class BlockingRecipeStoresTest {
 
     Event event = mock(Event.class);
     WritableRecipeStore underlyingStore = mock(WritableRecipeStore.class);
-    BlockingRecipeStores stores = new BlockingRecipeStores(underlyingStore);
+    OffsetFutures stores = new OffsetFutures();
     ExecutorService testExecutor = Executors.newSingleThreadExecutor();
 
     @Test

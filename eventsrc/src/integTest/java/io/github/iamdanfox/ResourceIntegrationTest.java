@@ -42,30 +42,30 @@ public class ResourceIntegrationTest {
     public void recipe_resource_smoke_test() throws Exception {
         try (Producer<byte[], Event> producer = KafkaUtils.jsonProducer()) {
 
-            WritableRecipeStore underlyingStore = new InMemoryRecipeStore();
-            BlockingRecipeStores recipeStores = new BlockingRecipeStores(underlyingStore);
+            WritableRecipeStore recipeStore = new InMemoryRecipeStore();
+            OffsetFutures futures = new OffsetFutures();
 
             KafkaConsumer<byte[], Event> consumer = KafkaUtils.jsonConsumer();
             consumerExecutor.submit(() -> {
                 consumer.subscribe(ImmutableList.of("resource_smoke_test"));
                 while (true) {
-                    ConsumerRecords<byte[], Event> poll = consumer.poll(40);
+                    ConsumerRecords<byte[], Event> poll = consumer.poll(400);
                     poll.forEach(record -> {
-                        underlyingStore.consume(record.value());
-                        recipeStores.updateMaxOffsets(record.partition(), record.offset());
+                        recipeStore.consume(record.value());
+                        futures.updateMaxOffsets(record.partition(), record.offset());
                     });
                 }
             });
 
             RecipeResource resource = new RecipeResource(
-                    underlyingStore, recipeStores, producer, "resource_smoke_test");
+                    recipeStore, futures, producer, "resource_smoke_test");
 
             // sleep to let kafka / zookeeper warm up
             Thread.sleep(4000);
 
             benchmarkBlockingWrite(resource, 100);
             benchmarkCallbackWrite(resource, 5000);
-            benchmarkReads(resource, 500);
+            benchmarkReads(resource, 5000);
 
             consumer.wakeup();
         }
@@ -86,7 +86,7 @@ public class ResourceIntegrationTest {
         Stopwatch stopwatch = Stopwatch.createStarted();
         CountDownLatch latch = new CountDownLatch(count);
         for (int i = 0; i < count; i++) {
-            resource.createRecipe2(CreateRecipe.builder()
+            resource.createRecipeAsync(CreateRecipe.builder()
                     .contents("some-contents")
                     .build(), ignured -> latch.countDown());
         }

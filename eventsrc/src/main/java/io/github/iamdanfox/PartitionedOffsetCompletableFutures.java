@@ -6,15 +6,15 @@ package io.github.iamdanfox;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 
 public class PartitionedOffsetCompletableFutures {
-
     private final Map<Integer, OffsetCompletableFutures> cache = new ConcurrentHashMap<>();
-    private static final Function<Integer, OffsetCompletableFutures> FACTORY =
-            partitionId -> new OffsetCompletableFutures();
 
     public OffsetCompletableFutures forPartition(int partition) {
-        return cache.computeIfAbsent(partition, FACTORY);
+        return cache.computeIfAbsent(partition, PartitionedOffsetCompletableFutures::create);
+    }
+
+    private static OffsetCompletableFutures create(int partitionId) {
+        return new OffsetCompletableFutures();
     }
 }

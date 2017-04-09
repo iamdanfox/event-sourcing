@@ -19,14 +19,14 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 
 public class RecipeResource implements RecipeService {
 
-    private final BlockingRecipeStores recipeStores;
+    private final OffsetFutures recipeStores;
     private final Producer<?, Event> producer;
     private final String topic;
     private final RecipeStore readStore;
 
     public RecipeResource(
             RecipeStore readStore,
-            BlockingRecipeStores recipeStores,
+            OffsetFutures recipeStores,
             Producer<?, Event> producer,
             String topic) {
         this.readStore = readStore;
@@ -55,18 +55,20 @@ public class RecipeResource implements RecipeService {
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
+
         int partition = metadata.partition();
         long offset = metadata.offset();
-        CompletableFuture<?> blockingStore = recipeStores.offsetLoaded(partition, offset);
+        CompletableFuture<?> offsetLoadedFuture = recipeStores.offsetLoaded(partition, offset);
+
         try {
-            blockingStore.get(5, TimeUnit.SECONDS);
+            offsetLoadedFuture.get(5, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
         return readStore.getRecipeById(id).get();
     }
 
-    public void createRecipe2(CreateRecipe create, Consumer<RecipeResponse> userCallback) {
+    public void createRecipeAsync(CreateRecipe create, Consumer<RecipeResponse> userCallback) {
         RecipeId id = RecipeId.fromString(UUID.randomUUID().toString());
         Event value = RecipeCreatedEvent.builder()
                 .id(id)

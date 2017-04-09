@@ -26,7 +26,7 @@ public class OffsetCompletableFuturesTest {
     @Test
     public void if_150_already_seen_wait_for_123_returns_immediately() throws Exception {
         futures.updateMaxOffset(150L);
-        Future<?> future = futures.forOffset(123L);
+        Future<?> future = futures.futureForOffset(123L);
 
         Stopwatch watch = Stopwatch.createStarted();
         future.get(1, TimeUnit.SECONDS);
@@ -35,7 +35,7 @@ public class OffsetCompletableFuturesTest {
 
     @Test
     public void forOffset_123_returns_a_future_that_is_complete_after_124_is_consumed() throws Exception {
-        Future<?> future = futures.forOffset(123L);
+        Future<?> future = futures.futureForOffset(123L);
 
         futures.updateMaxOffset(124L);
         future.get(1, TimeUnit.SECONDS);
@@ -43,7 +43,7 @@ public class OffsetCompletableFuturesTest {
 
     @Test
     public void forOffset_123_returns_a_future_isnt_complete_by_default() throws Exception {
-        Future<?> future = futures.forOffset(123L);
+        Future<?> future = futures.futureForOffset(123L);
 
         futures.updateMaxOffset(122L);
         exception.expect(TimeoutException.class);

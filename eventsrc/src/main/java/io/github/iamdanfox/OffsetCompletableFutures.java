@@ -17,7 +17,7 @@ public class OffsetCompletableFutures {
     private AtomicLong maxOffsetSeenAlready = new AtomicLong(-1);
     private final Set<BlockingCondition> listeners = Sets.newConcurrentHashSet();
 
-    public CompletableFuture<?> forOffset(long waitForOffset) {
+    public CompletableFuture<?> futureForOffset(long waitForOffset) {
         if (maxOffsetSeenAlready.get() >= waitForOffset) {
             return CompletableFuture.completedFuture(null);
         }
