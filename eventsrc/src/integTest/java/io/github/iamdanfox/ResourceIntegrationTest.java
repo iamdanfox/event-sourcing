@@ -89,7 +89,7 @@ public class ResourceIntegrationTest {
         for (int i = 0; i < count; i++) {
             resource.createRecipeAsync(CreateRecipe.builder()
                     .contents("some-contents")
-                    .build(), ignured -> latch.countDown());
+                    .build()).thenAccept(ignored -> latch.countDown());
         }
         assertThat(latch.await(10, TimeUnit.SECONDS), is(true));
         long micro = stopwatch.elapsed(TimeUnit.MICROSECONDS);

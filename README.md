@@ -61,7 +61,7 @@ world
 
 Lovely. `Ctrl-C` to kill this consumer and then re-run produces exactly the same values.  I mash a few keys into the producer and watch them appear on the consumer CLI.  Slightly surprised at the latency... this doesn't seem to be blazing on my docker containers.
 
-# Time for Java
+## Time for Java
 
 The whole point of this thing was to try to build a CRUD app using event sourcing.  I think I'm going to build something to store recipes. I start by adding an API project in my `settings.gradle`:
 
@@ -124,7 +124,7 @@ public void round_trip_serialization() throws Exception {
 }
 ```
 
-# Dockerized integration test
+## Dockerized integration test
 
 I need to write some Java to put events into a Kafka topic using a 'Kafka producer'.
 A bit of Googling suggests that I need the [`kafka-clients` Jar](https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients).  
@@ -182,7 +182,7 @@ machine:
     - docker
 ```
 
-# Write a producer!
+## Write a producer!
 
 Now that I've got my integration test setup working, I can actually start implementing things.  
 How on earth do I make a producer? Consult Google. Find [tutorial](http://www.javaworld.com/article/3060078/big-data/big-data-messaging-with-kafka-part-1.html).
@@ -249,7 +249,7 @@ We can get round this with a temporary hack of different docker-compose.yml file
 Gonna add stuff to /etc/hosts instead.  Weirdly this isn't working.  Strikes me that this whole problem goes away if we just
 require Docker for Mac only and drop support for docker-machine!! Green light!
 
-# Produce real events
+## Produce real events
 
 So far, I've just put a String into Kafka.  Time to fire off some JSON!  I implement `org.apache.kafka.common.serialization.Serializer` and call jackson's ObjectMapper#writeValueAsBytes.
 A new `RecipeCreatedEvent` then goes onto the topic nicely.  Not sure what I should be doing with my `RecipeId`.
@@ -257,7 +257,7 @@ I know Kafka has a `Key` field, but I think this is more for fine-grained partit
 
 Frustratingly, my test currently doesn't actually validate that sensible bytes end up in Kafka (I've only implemented the write path, not the read one).
 
-# Consume events
+## Consume events
 
 If my microservice is going to expose nice CRUD endpoints, it needs to consume events from Kafka and answer questions about the current state of the world.  I'll add an extra test method to check I can consume simple json objects.
 
@@ -316,7 +316,7 @@ Message received first time.  Perhaps zookeeper on my little docker containers i
 Time to find a Jackson implementation of Kafka's `Deserializer<T>`. Strange that there doesn't seem to be a maven artifact
 I can just depend on here.  Nevermind, it's only 40 lines of code.
 
-# Event reducer (aggregator)
+## Event reducer (aggregator)
 
 The core of the Event Sourcing pattern is that you store an immutable history of 'events' which are changes to your domain concepts.  Services consume all these events to build up their view of the world.
 
@@ -374,7 +374,7 @@ private final Multimap<RecipeId, RecipeTag> tagsById = HashMultimap.create();
 I wonder whether this whole store will need to be synchronized eventually?  
 Yes, it would degrade performance slightly, but I bet it'll still be drastically better than any kind of network database lookup you could do!
 
-# Blocking calls to the RecipeStore
+## Blocking calls to the RecipeStore
 
 Scenario:
 - User fires off 'POST' endpoint to add a tag to some recipe
@@ -436,4 +436,88 @@ alpha
 delta
 ```
 
-This experiment suggests that it's safe for the `RecipeStore` to track the maximum offset seen for each partition.
+This experiment suggests that it's safe for us to track the maximum offset seen for each partition.
+I've implemented this using a few ConcurrentHashMaps and some CompletableFutures.
+It feels like we're duplicating the committed offsets information that Kafka consumers already track, but crucially I want very low latency callbacks when we consume a newly written event.
+
+I wired up the `RecipeResource` with methods like this:
+
+```java
+@Override
+public RecipeResponse createRecipe(CreateRecipe create) {
+    RecipeId id = RecipeId.fromString(UUID.randomUUID().toString());
+    Event value = RecipeCreatedEvent.builder()
+            .id(id)
+            .create(create)
+            .build();
+
+    block(producer.send(new ProducerRecord<>(topic, value)));
+    return recipeStore.getRecipeById(id).get();
+}
+
+protected void block(Future<RecordMetadata> future) {
+    RecordMetadata metadata;
+    try {
+        metadata = future.get(10, TimeUnit.SECONDS);
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        throw new RuntimeException(e);
+    }
+
+    int partition = metadata.partition();
+    long offset = metadata.offset();
+    CompletableFuture<?> offsetLoadedFuture = offsetFutures.offsetLoaded(partition, offset);
+
+    try {
+        offsetLoadedFuture.get(10, TimeUnit.SECONDS);
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        throw new RuntimeException(e);
+    }
+}
+```
+
+That `block` method there waits for Kafka to commit the record we produce and also waits for us to consume the record we just wrote.  
+
+## Benchmarking
+
+I tried benchmarking 100 calls to that `createRecipe` method.  
+Locally, this turned out at about 5ms per call.
+I was quite pleased with this but quickly discovered this is really the worst case performance! (Zero batching, possibly two network calls.)
+
+To reach some higher numbers, I need to minimise blocking.
+Kafka doesn't seem to use the nice Java8 Completable Futures, but it does expose a callback API.
+My blocking offset detector also exposes a CompletableFuture, so I can chain these up conveniently:
+
+```java
+public CompletableFuture<RecipeResponse> createRecipeAsync(CreateRecipe create) {
+    RecipeId id = RecipeId.fromString(UUID.randomUUID().toString());
+    Event value = RecipeCreatedEvent.builder()
+            .id(id)
+            .create(create)
+            .build();
+
+    CompletableFuture<RecipeResponse> result = new CompletableFuture<>();
+
+    Callback kafkaCallback = (metadata, exception) -> {
+        int partition = metadata.partition();
+        long offset = metadata.offset();
+        offsetFutures.offsetLoaded(partition, offset).thenRun(() -> {
+            RecipeResponse response = recipeStore.getRecipeById(id).get();
+            result.complete(response);
+        });
+    };
+
+    producer.send(new ProducerRecord<>(topic, value), kafkaCallback);
+    return result;
+}
+```
+
+It turns out that running this method 5000 times averaged at 83 microseconds per call!
+That's a 100x improvement! (0.083 milliseconds compared to the previous 5 milliseconds per call)
+Just for fun, I benchmarked the read perf too.  It came out at about 600 nanoseconds per call.
+
+I'm sure that real world instrumenting and logging and SSL will slow this all down a bit, but it's nice to be starting with fast numbers!
+
+## High availability
+
+Now that we have reads and writes working convincingly, I'd like to prove everything still works even when one of my nodes or a Kafka node goes down.
+I think I'll fire off 5000 createRecipe requests and kill a Kafka node halfway through!
