@@ -64,6 +64,7 @@ public class ResourceIntegrationTest {
             Thread.sleep(4000);
 
             benchmarkBlockingWrite(resource, 100);
+            benchmarkAddTag(resource, 50);
             benchmarkCallbackWrite(resource, 5000);
             benchmarkReads(resource, 5000);
 
@@ -107,6 +108,21 @@ public class ResourceIntegrationTest {
         }
         long nano = stopwatch.elapsed(TimeUnit.NANOSECONDS);
         assertThat(answer.get().contents(), is("some-contents"));
-        System.out.println("reads:" + nano / count + " ns per call n = " + count);
+        System.out.println("reads:" + nano / count + " nanos per call n = " + count);
+    }
+
+    protected void benchmarkAddTag(RecipeResource resource, int count) {
+        RecipeResponse response = resource.createRecipe(CreateRecipe.builder()
+                .contents("some-contents")
+                .build());
+
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        RecipeResponse answer = null;
+        for (int i = 0; i < count; i++) {
+            answer = resource.addTag(response.id(), RecipeTag.fromString("my-tag-" + i));
+        }
+        long micros = stopwatch.elapsed(TimeUnit.MICROSECONDS);
+        assertThat(answer.tags().size(), is(count));
+        System.out.println("tags:" + micros / count + " microseconds per call n = " + count);
     }
 }

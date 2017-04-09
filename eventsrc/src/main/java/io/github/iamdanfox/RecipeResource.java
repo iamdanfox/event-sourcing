@@ -19,25 +19,25 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 
 public class RecipeResource implements RecipeService {
 
-    private final OffsetFutures recipeStores;
+    private final OffsetFutures offsetFutures;
     private final Producer<?, Event> producer;
     private final String topic;
-    private final RecipeStore readStore;
+    private final RecipeStore recipeStore;
 
     public RecipeResource(
-            RecipeStore readStore,
-            OffsetFutures recipeStores,
+            RecipeStore recipeStore,
+            OffsetFutures offsetFutures,
             Producer<?, Event> producer,
             String topic) {
-        this.readStore = readStore;
-        this.recipeStores = recipeStores;
+        this.recipeStore = recipeStore;
+        this.offsetFutures = offsetFutures;
         this.producer = producer;
         this.topic = topic;
     }
 
     @Override
     public Optional<RecipeResponse> getRecipe(RecipeId id) {
-        return readStore.getRecipeById(id);
+        return recipeStore.getRecipeById(id);
     }
 
     @Override
@@ -49,23 +49,49 @@ public class RecipeResource implements RecipeService {
                 .build();
         Future<RecordMetadata> future = producer.send(new ProducerRecord<>(topic, value));
 
+        block(future);
+        return recipeStore.getRecipeById(id).get();
+    }
+
+    @Override
+    public RecipeResponse addTag(RecipeId id, RecipeTag tag) {
+        Event value = AddTagEvent.builder()
+                .id(id)
+                .tag(tag)
+                .build();
+
+        block(producer.send(new ProducerRecord<>(topic, value)));
+        return recipeStore.getRecipeById(id).get();
+    }
+
+    @Override
+    public RecipeResponse removeTag(RecipeId id, RecipeTag tag) {
+        Event value = RemoveTagEvent.builder()
+                .id(id)
+                .tag(tag)
+                .build();
+
+        block(producer.send(new ProducerRecord<>(topic, value)));
+        return recipeStore.getRecipeById(id).get();
+    }
+
+    protected void block(Future<RecordMetadata> future) {
         RecordMetadata metadata;
         try {
-            metadata = future.get(5, TimeUnit.SECONDS);
+            metadata = future.get(10, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
 
         int partition = metadata.partition();
         long offset = metadata.offset();
-        CompletableFuture<?> offsetLoadedFuture = recipeStores.offsetLoaded(partition, offset);
+        CompletableFuture<?> offsetLoadedFuture = offsetFutures.offsetLoaded(partition, offset);
 
         try {
-            offsetLoadedFuture.get(5, TimeUnit.SECONDS);
+            offsetLoadedFuture.get(10, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
-        return readStore.getRecipeById(id).get();
     }
 
     public void createRecipeAsync(CreateRecipe create, Consumer<RecipeResponse> userCallback) {
@@ -78,8 +104,8 @@ public class RecipeResource implements RecipeService {
         Callback kafkaCallback = (metadata, exception) -> {
             int partition = metadata.partition();
             long offset = metadata.offset();
-            recipeStores.offsetLoaded(partition, offset).thenRun(() -> {
-                RecipeResponse response = readStore.getRecipeById(id).get();
+            offsetFutures.offsetLoaded(partition, offset).thenRun(() -> {
+                RecipeResponse response = recipeStore.getRecipeById(id).get();
                 userCallback.accept(response);
             });
         };
