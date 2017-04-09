@@ -8,6 +8,9 @@ machine:
   environment:
     TERM: dumb
     DOCKER_COMPOSE_LOCATION: /home/ubuntu/docker-compose
+  hosts:
+    kafka: 127.0.0.1
+    kafka-fallback: 127.0.0.1
 
 dependencies:
   override:
