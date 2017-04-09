@@ -102,12 +102,16 @@ public class RecipeResource implements RecipeService {
         CompletableFuture<RecipeResponse> result = new CompletableFuture<>();
 
         Callback kafkaCallback = (metadata, exception) -> {
-            int partition = metadata.partition();
-            long offset = metadata.offset();
-            offsetFutures.offsetLoaded(partition, offset).thenRun(() -> {
-                RecipeResponse response = recipeStore.getRecipeById(id).get();
-                result.complete(response);
-            });
+            try {
+                int partition = metadata.partition();
+                long offset = metadata.offset();
+                offsetFutures.offsetLoaded(partition, offset).thenRun(() -> {
+                    RecipeResponse response = recipeStore.getRecipeById(id).get();
+                    result.complete(response);
+                });
+            } catch (Exception e) {
+                result.completeExceptionally(e);
+            }
         };
 
         producer.send(new ProducerRecord<>(topic, value), kafkaCallback);

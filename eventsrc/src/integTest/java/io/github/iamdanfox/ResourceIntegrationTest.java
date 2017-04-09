@@ -4,6 +4,8 @@
 
 package io.github.iamdanfox;
 
+import static com.palantir.docker.compose.execution.DockerComposeExecArgument.arguments;
+import static com.palantir.docker.compose.execution.DockerComposeExecOption.noOptions;
 import static com.palantir.docker.compose.logging.LogDirectory.circleAwareLogDirectory;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -11,6 +13,8 @@ import static org.hamcrest.Matchers.is;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.palantir.docker.compose.DockerComposeRule;
+import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -19,6 +23,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.common.Node;
+import org.apache.kafka.common.PartitionInfo;
 import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -31,7 +37,7 @@ public class ResourceIntegrationTest {
             .saveLogsTo(circleAwareLogDirectory(ResourceIntegrationTest.class))
             .build();
 
-    ExecutorService consumerExecutor = Executors.newSingleThreadExecutor();
+    ExecutorService consumerExecutor = Executors.newFixedThreadPool(2);
 
     @After
     public void after() {
@@ -65,10 +71,29 @@ public class ResourceIntegrationTest {
 
             benchmarkBlockingWrite(resource, 100);
             benchmarkAddTag(resource, 50);
+
+//            killLeader();
+
             benchmarkCallbackWrite(resource, 5000);
             benchmarkReads(resource, 5000);
 
+
             consumer.wakeup();
+        }
+    }
+
+    protected void killLeader() throws IOException, InterruptedException {
+        try (KafkaConsumer<byte[], Event> consumer2 = KafkaUtils.jsonConsumer()) {
+            consumer2.subscribe(ImmutableList.of("resource_smoke_test"));
+            List<PartitionInfo> info = consumer2.listTopics().get("resource_smoke_test");
+            Node leader = info.get(0).leader();
+            String leaderName = leader.host();
+
+            System.out.println("Killing leader " + leaderName);
+            docker.exec(noOptions(), leaderName, arguments("bash", "-c",
+                    "kill -7 $(ps ax | grep /opt/jdk/bin/java | grep -v grep| sed 's:\\s\\+:\\t:g' | cut -f2)"));
+
+            System.out.println("Killed leader " + leaderName);
         }
     }
 
@@ -91,7 +116,8 @@ public class ResourceIntegrationTest {
                     .contents("some-contents")
                     .build()).thenAccept(ignored -> latch.countDown());
         }
-        assertThat(latch.await(10, TimeUnit.SECONDS), is(true));
+        assertThat("latch size " + latch.getCount(),
+                latch.await(10, TimeUnit.SECONDS), is(true));
         long micro = stopwatch.elapsed(TimeUnit.MICROSECONDS);
         System.out.println("callback:" + micro / count + " microseconds per call (" + count + ")");
     }
